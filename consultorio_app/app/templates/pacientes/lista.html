@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de Pacientes - Sistema de Gestión{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people"></i> Lista de Pacientes</h2>
+    <a href="{{ url_for('main.crear_paciente') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i> Nuevo Paciente
+    </a>
+</div>
+
+<!-- Búsqueda -->
+<div class="row mb-3">
+    <div class="col-md-8">
+        <form method="GET" class="d-flex">
+            <div class="input-group">
+                <input type="text" name="buscar" id="searchInput" class="form-control" 
+                       placeholder="Buscar por nombre, apellido o DNI..." 
+                       value="{{ termino_busqueda or '' }}">
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+                {% if termino_busqueda %}
+                <a href="{{ url_for('main.listar_pacientes') }}" class="btn btn-outline-danger">
+                    <i class="bi bi-x"></i> Limpiar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if termino_busqueda %}
+        <small class="text-muted">
+            Mostrando {{ pacientes|length }} resultados para "{{ termino_busqueda }}"
+        </small>
+        {% endif %}
+    </div>
+</div>
+
+{% if pacientes %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="pacientesTable">
+            <thead class="table-light">
+                <tr>
+                    <th>DNI</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Obra Social</th>
+                    <th>Localidad</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paciente in pacientes %}
+                <tr>
+                    <td>{{ paciente.dni }}</td>
+                    <td>{{ paciente.nombre }}</td>
+                    <td>{{ paciente.apellido }}</td>
+                    <td>{{ paciente.telefono or '-' }}</td>
+                    <td>{{ paciente.email or '-' }}</td>
+                    <td>{{ paciente.obra_social.nombre if paciente.obra_social else '-' }}</td>
+                    <td>{{ paciente.localidad.nombre if paciente.localidad else '-' }}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ url_for('main.ver_paciente', id=paciente.id) }}" 
+                               class="btn btn-outline-info" title="Ver detalles">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('main.editar_paciente', id=paciente.id) }}" 
+                               class="btn btn-outline-warning" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger" 
+                                    data-paciente-id="{{ paciente.id }}"
+                                    data-paciente-nombre="{{ paciente.nombre }} {{ paciente.apellido }}"
+                                    onclick="confirmarEliminar(this)"
+                                    title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Información de totales -->
+<div class="mt-3">
+    <small class="text-muted">
+        Total de pacientes: {{ pacientes|length }}
+    </small>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-people display-1 text-muted"></i>
+    <h3 class="text-muted">No hay pacientes registrados</h3>
+    <p class="text-muted">Comience agregando el primer paciente al sistema.</p>
+    <a href="{{ url_for('main.crear_paciente') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i> Agregar Primer Paciente
+    </a>
+</div>
+{% endif %}
+
+<!-- Modal de confirmación de eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea eliminar al paciente <strong id="pacienteNombre"></strong>?</p>
+                <p class="text-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmarEliminacion">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Función para normalizar texto (remover tildes y convertir a minúsculas)
+function normalizarTexto(texto) {
+    return texto.toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Remover tildes
+                .replace(/[^\w\s]/gi, ''); // Remover caracteres especiales excepto espacios
+}
+
+// Búsqueda en tiempo real en la tabla (complementa la búsqueda del servidor)
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const searchText = normalizarTexto(this.value);
+    const table = document.getElementById('pacientesTable');
+    
+    if (!table) return; // Si no hay tabla, no hacer nada
+    
+    const rows = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const text = normalizarTexto(row.textContent);
+        
+        if (text.includes(searchText)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    }
+});
+
+// Envío automático del formulario después de un tiempo sin escribir
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const form = this.closest('form');
+    
+    searchTimeout = setTimeout(function() {
+        if (document.getElementById('searchInput').value.length > 2 || 
+            document.getElementById('searchInput').value.length === 0) {
+            form.submit();
+        }
+    }, 1000); // Esperar 1 segundo después de dejar de escribir
+});
+
+// Confirmación de eliminación
+let pacienteIdEliminar = null;
+
+function confirmarEliminar(button) {
+    const id = button.getAttribute('data-paciente-id');
+    const nombre = button.getAttribute('data-paciente-nombre');
+    
+    pacienteIdEliminar = id;
+    document.getElementById('pacienteNombre').textContent = nombre;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+document.getElementById('confirmarEliminacion').addEventListener('click', function() {
+    if (pacienteIdEliminar) {
+        // Crear y enviar formulario para eliminar
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/pacientes/${pacienteIdEliminar}/eliminar`;
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+});
+</script>
+{% endblock %}

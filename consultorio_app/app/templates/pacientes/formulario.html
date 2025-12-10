@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if paciente %}Editar Paciente{% else %}Nuevo Paciente{% endif %} - Sistema de Gestión
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4>
+                    {% if paciente %}
+                        <i class="bi bi-pencil"></i> Editar Paciente: {{ paciente.nombre }} {{ paciente.apellido }}
+                    {% else %}
+                        <i class="bi bi-person-plus"></i> Nuevo Paciente
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <!-- DNI -->
+                        <div class="col-md-6 mb-3">
+                            <label for="dni" class="form-label">DNI *</label>
+                            <input type="text" class="form-control" id="dni" name="dni" 
+                                   value="{{ paciente.dni if paciente else '' }}" required>
+                        </div>
+                        
+                        <!-- Nombre -->
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" 
+                                   value="{{ paciente.nombre if paciente else '' }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Apellido -->
+                        <div class="col-md-6 mb-3">
+                            <label for="apellido" class="form-label">Apellido *</label>
+                            <input type="text" class="form-control" id="apellido" name="apellido" 
+                                   value="{{ paciente.apellido if paciente else '' }}" required>
+                        </div>
+                        
+                        <!-- Fecha de Nacimiento -->
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento</label>
+                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" 
+                                   value="{{ paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente and paciente.fecha_nacimiento else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Teléfono -->
+                        <div class="col-md-6 mb-3">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="telefono" name="telefono" 
+                                   value="{{ paciente.telefono if paciente else '' }}">
+                        </div>
+                        
+                        <!-- Email -->
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ paciente.email if paciente else '' }}">
+                        </div>
+                    </div>
+                    
+                    <!-- Dirección -->
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="direccion" name="direccion" 
+                               value="{{ paciente.direccion if paciente else '' }}">
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Obra Social -->
+                        <div class="col-md-6 mb-3">
+                            <label for="obra_social_id" class="form-label">Obra Social</label>
+                            <select class="form-select" id="obra_social_id" name="obra_social_id">
+                                <option value="">Seleccionar obra social...</option>
+                                {% for obra_social in obras_sociales %}
+                                <option value="{{ obra_social.id }}" 
+                                        {% if paciente and paciente.obra_social_id == obra_social.id %}selected{% endif %}>
+                                    {{ obra_social.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Localidad -->
+                        <div class="col-md-6 mb-3">
+                            <label for="localidad_id" class="form-label">Localidad</label>
+                            <select class="form-select" id="localidad_id" name="localidad_id">
+                                <option value="">Seleccionar localidad...</option>
+                                {% for localidad in localidades %}
+                                <option value="{{ localidad.id }}" 
+                                        {% if paciente and paciente.localidad_id == localidad.id %}selected{% endif %}>
+                                    {{ localidad.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Observaciones -->
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3">{{ paciente.observaciones if paciente else '' }}</textarea>
+                    </div>
+                    
+                    <!-- Botones -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.listar_pacientes') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if paciente %}
+                                <i class="bi bi-check-lg"></i> Actualizar Paciente
+                            {% else %}
+                                <i class="bi bi-plus-lg"></i> Crear Paciente
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Validación de DNI
+document.getElementById('dni').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, ''); // Solo números
+    if (this.value.length > 8) {
+        this.value = this.value.substring(0, 8);
+    }
+});
+
+// Validación de teléfono
+document.getElementById('telefono').addEventListener('input', function() {
+    this.value = this.value.replace(/[^\d\-\+\s\(\)]/g, ''); // Solo números y caracteres de teléfono
+});
+</script>
+{% endblock %}
