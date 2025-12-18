@@ -45,8 +45,8 @@
                                 <td>{{ paciente.telefono or 'No registrado' }}</td>
                             </tr>
                             <tr>
-                                <td><strong>Carnet:</strong></td>
-                                <td>{{ paciente.carnet or 'No registrado' }}</td>
+                                <td><strong>Nro de Afiliado:</strong></td>
+                                <td>{{ paciente.nro_afiliado or 'No registrado' }}</td>
                             </tr>
                             <tr>
                                 <td><strong>Titular:</strong></td>
@@ -102,8 +102,8 @@
                         <small class="text-muted">Turnos Total</small>
                     </div>
                     <div class="col-6">
-                        <h4 class="text-success">{{ estadisticas.total_operaciones }}</h4>
-                        <small class="text-muted">Operaciones</small>
+                        <h4 class="text-success">{{ estadisticas.total_prestaciones }}</h4>
+                        <small class="text-muted">Prestaciones</small>
                     </div>
                 </div>
             </div>
@@ -118,8 +118,8 @@
                     <a href="{{ url_for('main.nuevo_turno') }}?paciente_id={{ paciente.id }}" class="btn btn-outline-success btn-sm">
                         <i class="bi bi-calendar-plus"></i> Nuevo Turno
                     </a>
-                    <a href="{{ url_for('main.nueva_operacion') }}?paciente_id={{ paciente.id }}" class="btn btn-outline-info btn-sm">
-                        <i class="bi bi-clipboard-plus"></i> Nueva Operación
+                    <a href="{{ url_for('main.nueva_prestacion') }}?paciente_id={{ paciente.id }}" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-clipboard-plus"></i> Nueva Prestación
                     </a>
                     <a href="{{ url_for('main.editar_paciente', id=paciente.id) }}" class="btn btn-outline-warning btn-sm">
                         <i class="bi bi-pencil"></i> Editar Datos
@@ -171,13 +171,13 @@
     </div>
 </div>
 
-<!-- Historial de operaciones -->
+<!-- Historial de prestaciones -->
 <div class="card mt-4">
     <div class="card-header">
-        <h5><i class="bi bi-clipboard-data"></i> Historial de Operaciones</h5>
+        <h5><i class="bi bi-clipboard-data"></i> Historial de Prestaciones</h5>
     </div>
     <div class="card-body">
-        {% if operaciones %}
+        {% if prestaciones %}
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead class="table-light">
@@ -190,13 +190,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for operacion in operaciones %}
+                    {% for prestacion in prestaciones %}
                     <tr>
-                        <td>{{ operacion.fecha.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ operacion.codigo.codigo if operacion.codigo else '-' }}</td>
-                        <td>{{ operacion.descripcion }}</td>
-                        <td>${{ "%.2f"|format(operacion.monto) }}</td>
-                        <td>{{ operacion.observaciones or '-' }}</td>
+                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ prestacion.codigo.codigo if prestacion.codigo else '-' }}</td>
+                        <td>{{ prestacion.descripcion }}</td>
+                        <td>${{ "%.2f"|format(prestacion.monto) }}</td>
+                        <td>{{ prestacion.observaciones or '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -205,9 +205,9 @@
         {% else %}
         <div class="text-center py-4">
             <i class="bi bi-clipboard-x display-4 text-muted"></i>
-            <h6 class="text-muted mt-2">No hay operaciones registradas</h6>
-            <a href="{{ url_for('main.nueva_operacion') }}?paciente_id={{ paciente.id }}" class="btn btn-primary btn-sm mt-2">
-                <i class="bi bi-clipboard-plus"></i> Registrar Primera Operación
+            <h6 class="text-muted mt-2">No hay prestaciones registradas</h6>
+            <a href="{{ url_for('main.nueva_prestacion') }}?paciente_id={{ paciente.id }}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-clipboard-plus"></i> Registrar Primera Prestación
             </a>
         </div>
         {% endif %}

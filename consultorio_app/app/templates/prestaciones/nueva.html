@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Nueva Operación{% endblock %}
+{% block title %}Nueva Prestación{% endblock %}
 
 {% block content %}
-<h3 class="mb-3">Nueva Operación</h3>
+<h3 class="mb-3">Nueva Prestación</h3>
 <div class="card">
     <div class="card-body">
         <form method="post">
@@ -40,7 +40,7 @@
                 </div>
             </div>
             <div class="d-flex justify-content-end gap-2 mt-3">
-                <a href="{{ url_for('main.listar_operaciones') }}" class="btn btn-outline-secondary">Cancelar</a>
+                <a href="{{ url_for('main.listar_prestaciones') }}" class="btn btn-outline-secondary">Cancelar</a>
                 <button type="submit" class="btn btn-primary">Guardar</button>
             </div>
         </form>

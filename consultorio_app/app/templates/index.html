@@ -8,7 +8,7 @@
         <h1 class="display-5 fw-bold">Bienvenido al Sistema de Gestión</h1>
         <p class="col-md-8 fs-4">
             Sistema integral para la gestión de consultorios odontológicos. 
-            Administre pacientes, turnos y operaciones de manera eficiente.
+            Administre pacientes, turnos y prestaciones de manera eficiente.
         </p>
         <a class="btn btn-primary btn-lg" href="{{ url_for('main.crear_paciente') }}" role="button">
             <i class="bi bi-person-plus"></i> Agregar Nuevo Paciente
@@ -54,10 +54,10 @@
     <div class="col-md-3">
         <div class="card stats-card text-center bg-warning text-white">
             <div class="card-body">
-                <h2 class="card-title">{{ stats.operaciones }}</h2>
+                <h2 class="card-title">{{ stats.prestaciones }}</h2>
                 <p class="card-text">
                     <i class="bi bi-clipboard-data fs-3"></i><br>
-                    Total Operaciones
+                    Total Prestaciones
                 </p>
             </div>
         </div>
@@ -79,8 +79,8 @@
                     <a href="{{ url_for('main.nuevo_turno') }}" class="btn btn-outline-success">
                         <i class="bi bi-calendar-plus"></i> Nuevo Turno
                     </a>
-                    <a href="{{ url_for('main.nueva_operacion') }}" class="btn btn-outline-info">
-                        <i class="bi bi-clipboard-plus"></i> Nueva Operación
+                    <a href="{{ url_for('main.nueva_prestacion') }}" class="btn btn-outline-info">
+                        <i class="bi bi-clipboard-plus"></i> Nueva Prestación
                     </a>
                 </div>
             </div>

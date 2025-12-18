@@ -16,13 +16,13 @@ class Paciente(db.Model):
     localidad = relationship("Localidad", back_populates="pacientes")
     obra_social_id = Column(Integer, ForeignKey("obras_sociales.id"), nullable=True)
     obra_social = relationship("ObraSocial", back_populates="pacientes")
-    carnet = Column(String, nullable=True)
+    nro_afiliado = Column(String, nullable=True)
     titular = Column(String, nullable=True)
     parentesco = Column(String, nullable=True)
     lugar_trabajo = Column(String, nullable=True)
     barrio = Column(String, nullable=True)
     turnos = relationship("Turno", back_populates="paciente", cascade="all, delete-orphan")
-    operaciones = relationship("Operacion", back_populates="paciente")
+    prestaciones = relationship("Prestacion", back_populates="paciente")
 
     def __str__(self):
         return f"{self.apellido}, {self.nombre} (DNI: {self.dni})"
@@ -30,5 +30,5 @@ class Paciente(db.Model):
     def agendar_turno(self, turno):
         self.turnos.append(turno)
 
-    def registrar_operacion(self, operacion):
-        self.operaciones.append(operacion)
+    def registrar_prestacion(self, prestacion):
+        self.prestaciones.append(prestacion)

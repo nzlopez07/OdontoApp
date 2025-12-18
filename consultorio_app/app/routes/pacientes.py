@@ -1,9 +1,9 @@
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from flask import render_template, request, redirect, url_for, flash
-from app.database.session import DatabaseSession
-from app.models import Paciente, Turno, Operacion, Localidad, ObraSocial
-from app.services import BusquedaUtils
+from app.models import Prestacion
+from app.services.paciente_service import PacienteService
+from app.services.turno_service import TurnoService
 from . import main_bp
 
 
@@ -24,15 +24,11 @@ def listar_pacientes():
         description: Lista de pacientes obtenida exitosamente
     """
     termino_busqueda = request.args.get('buscar', '').strip()
-    if termino_busqueda:
-        pacientes = BusquedaUtils.buscar_pacientes_simple(termino_busqueda)
-    else:
-        pacientes = Paciente.query.all()
-
+    pacientes = PacienteService.listar_pacientes(termino_busqueda)
     return render_template(
-        'pacientes/lista.html',
-        pacientes=pacientes,
-        termino_busqueda=termino_busqueda,
+      'pacientes/lista.html',
+      pacientes=pacientes,
+      termino_busqueda=termino_busqueda,
     )
 
 
@@ -93,38 +89,31 @@ def crear_paciente():
       302:
         description: Redirección después de crear paciente exitosamente
     """
-    session = DatabaseSession.get_instance().session
+    obras_sociales = PacienteService.listar_obras_sociales()
+    localidades = PacienteService.listar_localidades()
 
     if request.method == 'POST':
         try:
-            paciente = Paciente(
-                nombre=request.form['nombre'],
-                apellido=request.form['apellido'],
-                dni=request.form['dni'],
-                fecha_nac=datetime.strptime(request.form['fecha_nac'], '%Y-%m-%d').date()
-                if request.form.get('fecha_nac')
-                else None,
-                telefono=request.form.get('telefono'),
-                direccion=request.form.get('direccion'),
-                obra_social_id=int(request.form['obra_social_id']) if request.form.get('obra_social_id') else None,
-                localidad_id=int(request.form['localidad_id']) if request.form.get('localidad_id') else None,
-                carnet=request.form.get('carnet'),
-                titular=request.form.get('titular'),
-                parentesco=request.form.get('parentesco'),
-                lugar_trabajo=request.form.get('lugar_trabajo'),
-                barrio=request.form.get('barrio'),
-            )
-
-            session.add(paciente)
-            session.commit()
+            fecha_nac = datetime.strptime(request.form['fecha_nac'], '%Y-%m-%d').date() if request.form.get('fecha_nac') else None
+            PacienteService.crear_paciente({
+                'nombre': request.form['nombre'],
+                'apellido': request.form['apellido'],
+                'dni': request.form['dni'],
+                'fecha_nac': fecha_nac,
+                'telefono': request.form.get('telefono'),
+                'direccion': request.form.get('direccion'),
+                'obra_social_id': int(request.form['obra_social_id']) if request.form.get('obra_social_id') else None,
+                'localidad_id': int(request.form['localidad_id']) if request.form.get('localidad_id') else None,
+                'nro_afiliado': request.form.get('carnet'),
+                'titular': request.form.get('titular'),
+                'parentesco': request.form.get('parentesco'),
+                'lugar_trabajo': request.form.get('lugar_trabajo'),
+                'barrio': request.form.get('barrio'),
+            })
             flash('Paciente creado exitosamente', 'success')
             return redirect(url_for('main.listar_pacientes'))
         except Exception as e:
-            session.rollback()
             flash(f'Error al crear paciente: {str(e)}', 'error')
-
-    obras_sociales = ObraSocial.query.order_by(ObraSocial.nombre).all()
-    localidades = Localidad.query.order_by(Localidad.nombre).all()
 
     return render_template(
         'pacientes/formulario.html',
@@ -152,26 +141,13 @@ def ver_paciente(id: int):
       404:
         description: Paciente no encontrado
     """
-    paciente = Paciente.query.get_or_404(id)
-
-    edad = None
-    if paciente.fecha_nac:
-        edad = relativedelta(date.today(), paciente.fecha_nac).years
-
-    turnos = (
-        Turno.query.filter_by(paciente_id=id)
-        .order_by(Turno.fecha.desc(), Turno.hora.desc())
-        .all()
-    )
-    operaciones = (
-        Operacion.query.filter_by(paciente_id=id)
-        .order_by(Operacion.fecha.desc())
-        .all()
-    )
+    paciente, turnos, prestaciones, edad = PacienteService.obtener_detalle(id)
+    if not paciente:
+        return redirect(url_for('main.listar_pacientes'))
 
     estadisticas = {
         'total_turnos': len(turnos),
-        'total_operaciones': len(operaciones),
+        'total_prestaciones': len(prestaciones),
     }
 
     return render_template(
@@ -179,7 +155,7 @@ def ver_paciente(id: int):
         paciente=paciente,
         edad=edad,
         turnos=turnos,
-        operaciones=operaciones,
+        prestaciones=prestaciones,
         estadisticas=estadisticas,
     )
 
@@ -187,39 +163,35 @@ def ver_paciente(id: int):
 @main_bp.route('/pacientes/<int:id>/editar', methods=['GET', 'POST'])
 def editar_paciente(id: int):
     """Editar un paciente existente."""
-    paciente = Paciente.query.get_or_404(id)
-
-    session = DatabaseSession.get_instance().session
+    paciente = PacienteService.obtener_paciente(id)
+    if not paciente:
+        return redirect(url_for('main.listar_pacientes'))
 
     if request.method == 'POST':
         try:
-            paciente.nombre = request.form['nombre']
-            paciente.apellido = request.form['apellido']
-            paciente.dni = request.form['dni']
-            paciente.fecha_nac = (
-                datetime.strptime(request.form['fecha_nac'], '%Y-%m-%d').date()
-                if request.form.get('fecha_nac')
-                else None
-            )
-            paciente.telefono = request.form.get('telefono')
-            paciente.direccion = request.form.get('direccion')
-            paciente.obra_social_id = int(request.form['obra_social_id']) if request.form.get('obra_social_id') else None
-            paciente.localidad_id = int(request.form['localidad_id']) if request.form.get('localidad_id') else None
-            paciente.carnet = request.form.get('carnet')
-            paciente.titular = request.form.get('titular')
-            paciente.parentesco = request.form.get('parentesco')
-            paciente.lugar_trabajo = request.form.get('lugar_trabajo')
-            paciente.barrio = request.form.get('barrio')
-
-            session.commit()
+            fecha_nac = datetime.strptime(request.form['fecha_nac'], '%Y-%m-%d').date() if request.form.get('fecha_nac') else None
+            PacienteService.actualizar_paciente(paciente, {
+                'nombre': request.form['nombre'],
+                'apellido': request.form['apellido'],
+                'dni': request.form['dni'],
+                'fecha_nac': fecha_nac,
+                'telefono': request.form.get('telefono'),
+                'direccion': request.form.get('direccion'),
+                'obra_social_id': int(request.form['obra_social_id']) if request.form.get('obra_social_id') else None,
+                'localidad_id': int(request.form['localidad_id']) if request.form.get('localidad_id') else None,
+                'nro_afiliado': request.form.get('carnet'),
+                'titular': request.form.get('titular'),
+                'parentesco': request.form.get('parentesco'),
+                'lugar_trabajo': request.form.get('lugar_trabajo'),
+                'barrio': request.form.get('barrio'),
+            })
             flash('Paciente actualizado exitosamente', 'success')
             return redirect(url_for('main.ver_paciente', id=paciente.id))
         except Exception as e:
-            session.rollback()
             flash(f'Error al actualizar paciente: {str(e)}', 'error')
 
-    obras_sociales = ObraSocial.query.order_by(ObraSocial.nombre).all()
-    localidades = Localidad.query.order_by(Localidad.nombre).all()
+    obras_sociales = PacienteService.listar_obras_sociales()
+    localidades = PacienteService.listar_localidades()
 
     return render_template(
         'pacientes/formulario.html',

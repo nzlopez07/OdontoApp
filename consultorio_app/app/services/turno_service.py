@@ -11,6 +11,7 @@ Este módulo contiene la lógica de negocio para:
 from datetime import datetime, date, time, timedelta
 from typing import List, Optional, Dict, Any
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload
 from app.database.session import DatabaseSession
 from app.models import Turno, Paciente, Estado, CambioEstado
 
@@ -309,6 +310,116 @@ class TurnoService:
         return Turno.query.filter(
             Turno.fecha >= date.today()
         ).order_by(Turno.fecha, Turno.hora).limit(limite).all()
+
+    # === Métodos adaptados a la app actual (estado como string) ===
+    @staticmethod
+    def actualizar_no_atendidos(session):
+        """Marca turnos vencidos como NoAtendido."""
+        ahora = datetime.now()
+        hoy = date.today()
+
+        vencidos = (
+            session.query(Turno)
+            .filter(Turno.estado.is_(None) | ~Turno.estado.in_(['Atendido', 'NoAtendido', 'Cancelado']))
+            .all()
+        )
+
+        cambios = 0
+        for turno in vencidos:
+            es_vencido = False
+            if turno.fecha < hoy:
+                es_vencido = True
+            elif turno.fecha == hoy and turno.hora:
+                turno_dt = datetime.combine(turno.fecha, turno.hora)
+                if turno_dt < ahora:
+                    es_vencido = True
+            if es_vencido:
+                turno.estado = 'NoAtendido'
+                cambios += 1
+        if cambios:
+            session.commit()
+
+    @staticmethod
+    def listar_turnos(fecha_filtro: str | None, termino: str | None):
+        session = DatabaseSession.get_instance().session
+        TurnoService.actualizar_no_atendidos(session)
+
+        query = session.query(Turno).options(joinedload(Turno.paciente)).join(Paciente)
+
+        if fecha_filtro:
+            fecha_obj = datetime.strptime(fecha_filtro, '%Y-%m-%d').date()
+            query = query.filter(Turno.fecha == fecha_obj)
+        else:
+            query = query.filter(Turno.fecha >= date.today())
+
+        termino = (termino or '').strip()
+        if termino:
+            like_term = f"%{termino.lower()}%"
+            query = query.filter(
+                (Paciente.nombre.ilike(like_term)) |
+                (Paciente.apellido.ilike(like_term)) |
+                (Paciente.dni.ilike(like_term))
+            )
+
+        return query.order_by(Turno.fecha, Turno.hora).all()
+
+    @staticmethod
+    def crear_turno(data: dict):
+        session = DatabaseSession.get_instance().session
+        turno = Turno(
+            paciente_id=data.get('paciente_id'),
+            fecha=data.get('fecha'),
+            hora=data.get('hora'),
+            detalle=data.get('detalle'),
+            estado=data.get('estado', 'Pendiente'),
+        )
+        session.add(turno)
+        session.commit()
+        return turno
+
+    @staticmethod
+    def cambiar_estado(turno_id: int, nuevo_estado: str):
+        session = DatabaseSession.get_instance().session
+        turno = session.get(Turno, turno_id)
+        if not turno:
+            return None, 'Turno no encontrado'
+
+        if nuevo_estado not in ['Pendiente', 'Confirmado', 'Atendido', 'NoAtendido', 'Cancelado']:
+            return None, 'Estado inválido'
+
+        if nuevo_estado == 'Cancelado' and (turno.estado == 'NoAtendido'):
+            return None, 'No se puede cancelar un turno marcado como NoAtendido.'
+
+        estado_anterior = turno.estado or 'Pendiente'
+        if turno.fecha < date.today() and nuevo_estado not in ['Atendido', 'NoAtendido']:
+            turno.estado = 'NoAtendido'
+        else:
+            turno.estado = nuevo_estado
+
+        cambio = CambioEstado(
+            turno_id=turno.id,
+            estado_anterior=estado_anterior,
+            estado_nuevo=turno.estado,
+            fecha_cambio=datetime.now(),
+            motivo='Cambio de estado desde interfaz de usuario'
+        )
+
+        session.add(cambio)
+        session.commit()
+        return turno, None
+
+    @staticmethod
+    def eliminar_turno(turno_id: int):
+        session = DatabaseSession.get_instance().session
+        turno = session.get(Turno, turno_id)
+        if not turno:
+            return None, 'Turno no encontrado'
+        estado_actual = turno.estado or 'Pendiente'
+        if estado_actual != 'Pendiente':
+            return None, f'Solo se pueden eliminar turnos Pendientes. Este turno está: {estado_actual}'
+        session.delete(turno)
+        session.commit()
+        return turno, None
     
     @staticmethod
     def obtener_estadisticas_turnos() -> Dict[str, int]:

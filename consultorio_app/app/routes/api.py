@@ -6,7 +6,7 @@ from datetime import datetime, date
 from flask import jsonify, request
 from sqlalchemy.orm import joinedload
 from app.database.session import DatabaseSession
-from app.models import Paciente, Turno, Operacion, Estado, CambioEstado
+from app.models import Paciente, Turno, Prestacion, Estado, CambioEstado
 from app.services import BusquedaUtils
 from . import main_bp
 
@@ -111,7 +111,7 @@ def api_ver_paciente(id: int):
         edad = relativedelta(date.today(), paciente.fecha_nac).years
 
     turnos = Turno.query.filter_by(paciente_id=id).order_by(Turno.fecha.desc()).count()
-    operaciones = Operacion.query.filter_by(paciente_id=id).count()
+    prestaciones = Prestacion.query.filter_by(paciente_id=id).count()
 
     return jsonify({
         'id': paciente.id,
@@ -123,7 +123,7 @@ def api_ver_paciente(id: int):
         'telefono': paciente.telefono,
         'direccion': paciente.direccion,
         'turnos_cantidad': turnos,
-        'operaciones_cantidad': operaciones,
+        'prestaciones_cantidad': prestaciones,
     })
 
 
@@ -247,14 +247,14 @@ def api_ver_turno(id: int):
     })
 
 
-# ===================== OPERACIONES API =====================
+# ===================== PRESTACIONES API =====================
 
-@main_bp.route('/api/operaciones')
-def api_listar_operaciones():
-    """Get all operations
+@main_bp.route('/api/prestaciones')
+def api_listar_prestaciones():
+    """Get all prestaciones
     ---
     tags:
-      - Operaciones
+      - Prestaciones
     parameters:
       - name: paciente_id
         in: query
@@ -265,14 +265,14 @@ def api_listar_operaciones():
     """
     paciente_id = request.args.get('paciente_id', type=int)
     
-    query = Operacion.query.options(joinedload(Operacion.paciente))
+    query = Prestacion.query.options(joinedload(Prestacion.paciente))
     
     if paciente_id:
-        query = query.filter(Operacion.paciente_id == paciente_id)
+        query = query.filter(Prestacion.paciente_id == paciente_id)
     
-    operaciones = query.order_by(Operacion.fecha.desc()).all()
+    prestaciones = query.order_by(Prestacion.fecha.desc()).all()
 
-    operaciones_data = [
+    prestaciones_data = [
         {
             'id': o.id,
             'descripcion': o.descripcion,
@@ -281,18 +281,18 @@ def api_listar_operaciones():
             'paciente_id': o.paciente_id,
             'paciente_nombre': f"{o.paciente.nombre} {o.paciente.apellido}" if o.paciente else '',
         }
-        for o in operaciones
+        for o in prestaciones
     ]
 
-    return jsonify({'operaciones': operaciones_data, 'cantidad': len(operaciones_data)})
+    return jsonify({'prestaciones': prestaciones_data, 'cantidad': len(prestaciones_data)})
 
 
-@main_bp.route('/api/operaciones/<int:id>')
-def api_ver_operacion(id: int):
-    """Get operation details
+@main_bp.route('/api/prestaciones/<int:id>')
+def api_ver_prestacion(id: int):
+    """Get prestacion details
     ---
     tags:
-      - Operaciones
+      - Prestaciones
     parameters:
       - name: id
         in: path
@@ -304,19 +304,19 @@ def api_ver_operacion(id: int):
       404:
         description: Operation not found
     """
-    operacion = Operacion.query.get_or_404(id)
+    prestacion = Prestacion.query.get_or_404(id)
 
     return jsonify({
-        'id': operacion.id,
-        'descripcion': operacion.descripcion,
-        'monto': float(operacion.monto) if operacion.monto else 0,
-        'fecha': operacion.fecha.isoformat() if operacion.fecha else None,
-        'observaciones': operacion.observaciones,
+        'id': prestacion.id,
+        'descripcion': prestacion.descripcion,
+        'monto': float(prestacion.monto) if prestacion.monto else 0,
+        'fecha': prestacion.fecha.isoformat() if prestacion.fecha else None,
+        'observaciones': prestacion.observaciones,
         'paciente': {
-            'id': operacion.paciente.id,
-            'nombre': operacion.paciente.nombre,
-            'apellido': operacion.paciente.apellido,
-            'dni': operacion.paciente.dni,
+            'id': prestacion.paciente.id,
+            'nombre': prestacion.paciente.nombre,
+            'apellido': prestacion.paciente.apellido,
+            'dni': prestacion.paciente.dni,
         },
     })
 

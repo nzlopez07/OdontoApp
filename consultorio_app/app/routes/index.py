@@ -1,6 +1,6 @@
 from datetime import date
 from flask import render_template
-from app.models import Paciente, Turno, Operacion
+from app.models import Paciente, Turno, Prestacion
 from . import main_bp
 
 
@@ -19,7 +19,7 @@ def index():
         'pacientes': Paciente.query.count(),
         'turnos': Turno.query.count(),
         'turnos_hoy': Turno.query.filter_by(fecha=date.today()).count(),
-        'operaciones': Operacion.query.count(),
+        'prestaciones': Prestacion.query.count(),
     }
 
     turnos_proximos = (

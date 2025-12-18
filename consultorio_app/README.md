@@ -51,7 +51,7 @@ consultorio_app/
 │   │   ├── cambioEstado.py     # Modelo CambioEstado
 │   │   ├── localidad.py        # Modelo Localidad
 │   │   ├── obraSocial.py       # Modelo ObraSocial
-│   │   ├── operacion.py        # Modelo Operacion
+│   │   ├── prestacion.py       # Modelo Prestacion
 │   │   └── codigo.py           # Modelo Codigo
 │   ├── routes/                  # Rutas de la aplicación
 │   └── services/               # Lógica de negocio
@@ -94,7 +94,7 @@ restore_database('consultorio_backup_20250721_120000.db')
 Script principal para configurar el sistema desde cero:
 - Crea y configura la base de datos
 - Puebla con datos maestros (estados, localidades, obras sociales, códigos)
-- Crea pacientes, turnos y operaciones de ejemplo
+- Crea pacientes, turnos y prestaciones de ejemplo
 - Prueba todas las relaciones entre modelos
 - Verifica el sistema de respaldos
 - Genera reporte estadístico completo
@@ -144,7 +144,7 @@ python test_flask_db.py
 - **Turno**: Citas programadas
 - **Estado**: Estados de los turnos (Pendiente, Confirmado, etc.)
 - **CambioEstado**: Historial de cambios de estado
-- **Operacion**: Tratamientos realizados
-- **Codigo**: Códigos de operaciones
+- **Prestacion**: Tratamientos realizados
+- **Codigo**: Códigos de prestaciones
 - **Localidad**: Ubicaciones geográficas
 - **ObraSocial**: Obras sociales

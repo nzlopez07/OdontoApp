@@ -13,8 +13,8 @@ class Turno(db.Model):
     detalle = Column(String, nullable=True)
     estado = Column(String, nullable=True)
     cambios_estado = relationship("CambioEstado", back_populates="turno", cascade="all, delete-orphan")
-    operacion_id = Column(Integer, ForeignKey("operaciones.id"), nullable=True)
-    operacion = relationship("Operacion", back_populates="turnos")
+    prestacion_id = Column(Integer, ForeignKey("prestaciones.id"), nullable=True)
+    prestacion = relationship("Prestacion", back_populates="turnos")
 
     def __str__(self):
         return f"Turno {self.id} - {self.fecha} {self.hora} - {self.estado or 'Pendiente'}"

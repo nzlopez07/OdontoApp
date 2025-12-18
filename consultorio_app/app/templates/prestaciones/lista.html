@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Operaciones{% endblock %}
+{% block title %}Prestaciones{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Operaciones</h3>
-    <a href="{{ url_for('main.nueva_operacion') }}" class="btn btn-sm btn-success">
-        <i class="bi bi-clipboard-plus"></i> Nueva operación
+    <h3 class="mb-0">Prestaciones</h3>
+    <a href="{{ url_for('main.nueva_prestacion') }}" class="btn btn-sm btn-success">
+        <i class="bi bi-clipboard-plus"></i> Nueva prestación
     </a>
 </div>
 
 <div class="card">
     <div class="card-body">
-        {% if operaciones %}
+        {% if prestaciones %}
         <div class="table-responsive">
             <table class="table table-striped align-middle">
                 <thead>
@@ -26,21 +26,21 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for operacion in operaciones %}
+                    {% for prestacion in prestaciones %}
                     <tr>
-                        <td>{{ operacion.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                        <td>{{ operacion.paciente.apellido }}, {{ operacion.paciente.nombre }}</td>
-                        <td>{{ operacion.descripcion }}</td>
-                        <td>${{ '%.2f'|format(operacion.monto) }}</td>
-                        <td>{{ operacion.codigo.numero if operacion.codigo else '-' }}</td>
-                        <td>{{ operacion.observaciones or '-' }}</td>
+                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ prestacion.paciente.apellido }}, {{ prestacion.paciente.nombre }}</td>
+                        <td>{{ prestacion.descripcion }}</td>
+                        <td>${{ '%.2f'|format(prestacion.monto) }}</td>
+                        <td>{{ prestacion.codigo.numero if prestacion.codigo else '-' }}</td>
+                        <td>{{ prestacion.observaciones or '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <p class="text-muted mb-0">No hay operaciones registradas.</p>
+        <p class="text-muted mb-0">No hay prestaciones registradas.</p>
         {% endif %}
     </div>
 </div>

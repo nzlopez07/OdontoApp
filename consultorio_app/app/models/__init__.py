@@ -5,7 +5,7 @@ from .estado import Estado
 from .cambioEstado import CambioEstado
 from .localidad import Localidad
 from .obraSocial import ObraSocial
-from .operacion import Operacion
+from .prestacion import Prestacion
 from .codigo import Codigo
 
 # Lista de todos los modelos para facilitar la importación
@@ -16,6 +16,6 @@ __all__ = [
     'CambioEstado',
     'Localidad',
     'ObraSocial',
-    'Operacion',
+    'Prestacion',
     'Codigo'
 ]

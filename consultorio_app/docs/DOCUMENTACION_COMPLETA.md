@@ -26,7 +26,7 @@
 Sistema web para gestionar una clínica odontológica con funcionalidades de:
 - Gestión de pacientes
 - Programación de turnos/citas
-- Registro de operaciones
+- Registro de prestaciones
 - Historial de cambios
 - API REST documentada con Swagger/OpenAPI
 
@@ -77,7 +77,7 @@ ProyectoOdonto/
 │   │   │   ├── estado.py              # Modelo Estado (legacy)
 │   │   │   ├── localidad.py           # Modelo Localidad (referencia)
 │   │   │   ├── obraSocial.py          # Modelo ObraSocial (referencia)
-│   │   │   ├── operacion.py           # Modelo Operacion (tratamientos)
+│   │   │   ├── prestacion.py          # Modelo Prestacion (tratamientos)
 │   │   │   └── codigo.py              # Modelo Codigo (códigos de operación)
 │   │   │
 │   │   ├── routes/                    # Rutas organizadas por dominio
@@ -85,7 +85,7 @@ ProyectoOdonto/
 │   │   │   ├── index.py               # GET /  (dashboard)
 │   │   │   ├── pacientes.py           # CRUD /pacientes
 │   │   │   ├── turnos.py              # CRUD /turnos (con validaciones)
-│   │   │   ├── operaciones.py         # CRUD /operaciones
+│   │   │   ├── prestaciones.py        # CRUD /prestaciones
 │   │   │   ├── api.py                 # Endpoints JSON /api/* (Swagger)
 │   │   │   └── main.py                # Legacy (vacío, sin usar)
 │   │   │
@@ -105,9 +105,9 @@ ProyectoOdonto/
 │   │   │   ├── turnos/
 │   │   │   │   ├── lista.html         # Listado filtrable
 │   │   │   │   └── nuevo.html         # Crear turno
-│   │   │   └── operaciones/
+│   │   │   └── prestaciones/
 │   │   │       ├── lista.html         # Listado
-│   │   │       └── nueva.html         # Crear operación
+│   │   │       └── nueva.html         # Crear prestación
 │   │   │
 │   │   └── __pycache__/               # Cache de Python (ignorar)
 │   │
@@ -178,20 +178,20 @@ class Paciente(db.Model):
     obra_social_id      → Integer (FK → obras_sociales)
     
     # Datos de afiliación
-    carnet              → String (opcional)
+     nro_afiliado        → String (opcional)
     titular             → String (opcional)
     parentesco          → String (opcional)
     lugar_trabajo       → String (opcional)
     
     # Relaciones
-    turnos              → Relationship[Turno] (cascade delete)
-    operaciones         → Relationship[Operacion]
+     turnos              → Relationship[Turno] (cascade delete)
+     prestaciones        → Relationship[Prestacion]
 ```
 
 **Métodos:**
 - `__str__()` → "Apellido, Nombre (DNI: xxx)"
 - `agendar_turno(turno)` → Agregar turno
-- `registrar_operacion(operacion)` → Agregar operación
+- `registrar_prestacion(prestacion)` → Agregar prestación
 
 ---
 
@@ -211,12 +211,12 @@ class Turno(db.Model):
     
     # Referencias
     paciente_id         → Integer (FK → pacientes)
-    operacion_id        → Integer (FK → operaciones, opcional)
+     prestacion_id       → Integer (FK → prestaciones, opcional)
     
     # Relaciones
     paciente            → Relationship[Paciente]
     cambios_estado      → Relationship[CambioEstado] (cascade delete)
-    operacion           → Relationship[Operacion]
+     prestacion          → Relationship[Prestacion]
 ```
 
 **Estados válidos:**
@@ -306,31 +306,31 @@ class ObraSocial(db.Model):
 
 ---
 
-### 7. **OPERACION** (tabla: operaciones)
+### 7. **PRESTACION** (tabla: prestaciones)
 ```python
-class Operacion(db.Model):
-    __tablename__ = "operaciones"
+class Prestacion(db.Model):
+     __tablename__ = "prestaciones"
     
-    # Identificadores
-    id                  → Integer (PK)
+     # Identificadores
+     id                  → Integer (PK)
     
-    # Datos
-    descripcion         → String (requerido)
-    monto               → Float (requerido)
-    fecha               → DateTime (requerido)
-    observaciones       → String (opcional)
+     # Datos
+     descripcion         → String (requerido)
+     monto               → Float (requerido)
+     fecha               → DateTime (requerido)
+     observaciones       → String (opcional)
     
-    # Referencias
-    paciente_id         → Integer (FK → pacientes)
-    codigo_id           → Integer (FK → codigos, opcional)
+     # Referencias
+     paciente_id         → Integer (FK → pacientes)
+     codigo_id           → Integer (FK → codigos, opcional)
     
-    # Relaciones
-    paciente            → Relationship[Paciente]
-    codigo              → Relationship[Codigo]
-    turnos              → Relationship[Turno]
+     # Relaciones
+     paciente            → Relationship[Paciente]
+     codigo              → Relationship[Codigo]
+     turnos              → Relationship[Turno]
 ```
 
-**Propósito:** Registrar tratamientos realizados y su costo
+**Propósito:** Registrar prestaciones realizadas y su costo
 
 ---
 
@@ -366,7 +366,7 @@ class Codigo(db.Model):
             │                      │
             │1                    1│
         ╱───▼───╲          ╱───────▼────╲
-        │ Turno  │         │ Operacion   │
+     │ Turno  │         │ Prestacion  │
         ├────────┤         ├─────────────┤
         │ estado │         │ monto       │
         │ fecha  │1        │ fecha       │
@@ -388,12 +388,12 @@ ObraSocial
 Paciente ←──── 1
     │1
     ├────→ Turno (1..*)
-    └────→ Operacion (1..*)
+     └────→ Prestacion (1..*)
 
 Turno
     ├──→ Paciente (*)
     ├──→ CambioEstado (1..*, cascade delete)
-    └──→ Operacion (0..1)
+     └──→ Prestacion (0..1)
 ```
 
 ---
@@ -409,7 +409,7 @@ Turno
 GET  /
      ├─ Retorna: template 'index.html'
      ├─ Datos:
-     │  ├─ stats: {pacientes: int, turnos: int, turnos_hoy: int, operaciones: int}
+     │  ├─ stats: {pacientes: int, turnos: int, turnos_hoy: int, prestaciones: int}
      │  └─ turnos_proximos: List[Turno] (próximos 5 turnos)
      └─ Template variables: stats, turnos_proximos
 ```
@@ -511,23 +511,23 @@ POST /turnos/<id>/eliminar
      └─ Error: flash si no es Pendiente
 ```
 
-#### **routes/operaciones.py** - CRUD Operaciones
+#### **routes/prestaciones.py** - CRUD Prestaciones
 ```
-GET  /operaciones
-     ├─ Retorna: template 'operaciones/lista.html'
-     └─ Variables: operaciones (ordenadas por fecha DESC)
+GET  /prestaciones
+     ├─ Retorna: template 'prestaciones/lista.html'
+     └─ Variables: prestaciones (ordenadas por fecha DESC)
 
-GET  /operaciones/nueva
-     ├─ Retorna: template 'operaciones/nueva.html'
+GET  /prestaciones/nueva
+     ├─ Retorna: template 'prestaciones/nueva.html'
      └─ Variables: pacientes, codigos
 
-POST /operaciones/nueva
+POST /prestaciones/nueva
      ├─ Body: form-data {paciente_id, descripcion, monto, codigo_id, observaciones}
      ├─ Lógica:
-     │  ├─ Crear Operacion
+     │  ├─ Crear Prestacion
      │  ├─ fecha = datetime.now()
      │  └─ Guardar
-     ├─ Response: redirect('/operaciones') con flash
+     ├─ Response: redirect('/prestaciones') con flash
      └─ Error: flash
 ```
 
@@ -539,7 +539,7 @@ GET  /api/pacientes
      └─ Swagger: tags=Pacientes
 
 GET  /api/pacientes/<id>
-     ├─ Retorna: JSON {id, nombre, apellido, dni, edad, telefono, turnos_cantidad, operaciones_cantidad}
+     ├─ Retorna: JSON {id, nombre, apellido, dni, edad, telefono, turnos_cantidad, prestaciones_cantidad}
      └─ Swagger: tags=Pacientes
 
 GET  /api/turnos
@@ -558,14 +558,14 @@ POST /api/turnos/sync/actualizar-vencidos
      ├─ Retorna: JSON {mensaje, cantidad}
      └─ Swagger: tags=Turnos
 
-GET  /api/operaciones
+GET  /api/prestaciones
      ├─ Query params: ?paciente_id=int
-     ├─ Retorna: JSON {operaciones: [{id, descripcion, monto, fecha, paciente_nombre, ...}], cantidad}
-     └─ Swagger: tags=Operaciones
+     ├─ Retorna: JSON {prestaciones: [{id, descripcion, monto, fecha, paciente_nombre, ...}], cantidad}
+     └─ Swagger: tags=Prestaciones
 
-GET  /api/operaciones/<id>
+GET  /api/prestaciones/<id>
      ├─ Retorna: JSON {id, descripcion, monto, fecha, observaciones, paciente}
-     └─ Swagger: tags=Operaciones
+     └─ Swagger: tags=Prestaciones
 
 GET  /api/estados
      ├─ Retorna: JSON {estados: ['Pendiente', 'Confirmado', 'Atendido', 'NoAtendido', 'Cancelado']}

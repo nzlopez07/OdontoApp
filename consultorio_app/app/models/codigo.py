@@ -9,8 +9,8 @@ class Codigo(db.Model):
     numero = Column(String(20), nullable=False, unique=True)
     descripcion = Column(String(200), nullable=False)
     
-    # Relación uno a muchos con operaciones
-    operaciones = relationship("Operacion", back_populates="codigo")
+    # Relación uno a muchos con prestaciones
+    prestaciones = relationship("Prestacion", back_populates="codigo")
 
     def __str__(self):
         return f"{self.numero} - {self.descripcion}"

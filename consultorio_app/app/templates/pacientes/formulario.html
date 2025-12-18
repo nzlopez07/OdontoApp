@@ -57,31 +57,34 @@
                                    value="{{ paciente.telefono if paciente else '' }}">
                         </div>
 
+                        <!-- Lugar de trabajo -->
+                        <div class="col-md-4 mb-3">
+                            <label for="lugar_trabajo" class="form-label">Lugar de trabajo</label>
+                            <input type="text" class="form-control" id="lugar_trabajo" name="lugar_trabajo" 
+                                   value="{{ paciente.lugar_trabajo if paciente else '' }}">
+                        </div>
+                    </div>
+
+                    <!-- Sección de Dirección -->
+                    <hr class="my-4">
+                    <h5 class="mb-3">Direcciones</h5>
+                    <div class="row">
                         <!-- Dirección -->
                         <div class="col-md-4 mb-3">
                             <label for="direccion" class="form-label">Dirección</label>
                             <input type="text" class="form-control" id="direccion" name="direccion" 
                                    value="{{ paciente.direccion if paciente else '' }}">
                         </div>
-                    </div>
 
-                    <div class="row">
-                        <!-- Obra Social -->
-                        <div class="col-md-6 mb-3">
-                            <label for="obra_social_id" class="form-label">Obra Social</label>
-                            <select class="form-select" id="obra_social_id" name="obra_social_id">
-                                <option value="">Seleccionar obra social...</option>
-                                {% for obra_social in obras_sociales %}
-                                <option value="{{ obra_social.id }}" 
-                                        {% if paciente and paciente.obra_social_id == obra_social.id %}selected{% endif %}>
-                                    {{ obra_social.nombre }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                        <!-- Barrio -->
+                        <div class="col-md-4 mb-3">
+                            <label for="barrio" class="form-label">Barrio</label>
+                            <input type="text" class="form-control" id="barrio" name="barrio" 
+                                   value="{{ paciente.barrio if paciente else '' }}">
                         </div>
 
                         <!-- Localidad -->
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="localidad_id" class="form-label">Localidad</label>
                             <select class="form-select" id="localidad_id" name="localidad_id">
                                 <option value="">Seleccionar localidad...</option>
@@ -95,34 +98,64 @@
                         </div>
                     </div>
 
+                    <!-- Sección de Obra Social -->
+                    <hr class="my-4">
+                    <h5 class="mb-3">Obra Social</h5>
                     <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="carnet" class="form-label">Carnet</label>
-                            <input type="text" class="form-control" id="carnet" name="carnet" 
-                                   value="{{ paciente.carnet if paciente else '' }}">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="titular" class="form-label">Titular</label>
-                            <input type="text" class="form-control" id="titular" name="titular" 
-                                   value="{{ paciente.titular if paciente else '' }}">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="parentesco" class="form-label">Parentesco</label>
-                            <input type="text" class="form-control" id="parentesco" name="parentesco" 
-                                   value="{{ paciente.parentesco if paciente else '' }}">
+                        <!-- Obra Social -->
+                        <div class="col-md-12 mb-3">
+                            <label for="obra_social_id" class="form-label">Obra Social</label>
+                            <select class="form-select" id="obra_social_id" name="obra_social_id">
+                                <option value="">Seleccionar obra social...</option>
+                                {% for obra_social in obras_sociales %}
+                                <option value="{{ obra_social.id }}" 
+                                        {% if paciente and paciente.obra_social_id == obra_social.id %}selected{% endif %}>
+                                    {{ obra_social.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="barrio" class="form-label">Barrio</label>
-                            <input type="text" class="form-control" id="barrio" name="barrio" 
-                                   value="{{ paciente.barrio if paciente else '' }}">
+                    <!-- Campos condicionales según obra social -->
+                    <div id="campos-ipss" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="nro_afiliado" class="form-label">Nro Afiliado</label>
+                                    <input type="text" class="form-control" id="nro_afiliado" name="carnet" 
+                                        value="{{ paciente.nro_afiliado if paciente else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="titular_ipss" class="form-label">Titular</label>
+                                <input type="text" class="form-control" id="titular_ipss" name="titular" 
+                                       value="{{ paciente.titular if paciente else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="parentesco_ipss" class="form-label">Parentesco</label>
+                                <input type="text" class="form-control" id="parentesco_ipss" name="parentesco" 
+                                       value="{{ paciente.parentesco if paciente else '' }}">
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="lugar_trabajo" class="form-label">Lugar de trabajo</label>
-                            <input type="text" class="form-control" id="lugar_trabajo" name="lugar_trabajo" 
-                                   value="{{ paciente.lugar_trabajo if paciente else '' }}">
+                    </div>
+
+                    <!-- Campos para otras obras sociales -->
+                    <div id="campos-otros" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="carnet" class="form-label">Nro de Afiliado</label>
+                                    <input type="text" class="form-control" id="carnet" name="carnet" 
+                                        value="{{ paciente.nro_afiliado if paciente else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="titular" class="form-label">Titular</label>
+                                <input type="text" class="form-control" id="titular" name="titular" 
+                                       value="{{ paciente.titular if paciente else '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="parentesco" class="form-label">Parentesco</label>
+                                <input type="text" class="form-control" id="parentesco" name="parentesco" 
+                                       value="{{ paciente.parentesco if paciente else '' }}">
+                            </div>
                         </div>
                     </div>
 
@@ -148,6 +181,45 @@
 
 {% block scripts %}
 <script>
+// Función para mostrar/ocultar campos según obra social
+function actualizarCamposObraSocial() {
+    const obraSocialSelect = document.getElementById('obra_social_id');
+    const obraSocialText = (obraSocialSelect.options[obraSocialSelect.selectedIndex]?.text || '').toLowerCase();
+
+    const camposIpss = document.getElementById('campos-ipss');
+    const camposOtros = document.getElementById('campos-otros');
+
+    // Helper para limpiar los campos relacionados a la obra social
+    const clearFields = () => {
+        ['nro_afiliado', 'carnet', 'titular', 'titular_ipss', 'parentesco', 'parentesco_ipss']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    };
+
+    if (obraSocialText.includes('ipss')) {
+        camposIpss.style.display = 'block';
+        camposOtros.style.display = 'none';
+    } else if (obraSocialText.includes('particular')) {
+        // Para PARTICULAR ocultamos y limpiamos los campos relacionados
+        camposIpss.style.display = 'none';
+        camposOtros.style.display = 'none';
+        clearFields();
+    } else if (obraSocialText === '') {
+        camposIpss.style.display = 'none';
+        camposOtros.style.display = 'none';
+    } else {
+        camposIpss.style.display = 'none';
+        camposOtros.style.display = 'block';
+    }
+}
+
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarCamposObraSocial();
+    
+    // Listener para cambios en la selección de obra social
+    document.getElementById('obra_social_id').addEventListener('change', actualizarCamposObraSocial);
+});
+
 // Validación de DNI
 document.getElementById('dni').addEventListener('input', function() {
     this.value = this.value.replace(/\D/g, ''); // Solo números
