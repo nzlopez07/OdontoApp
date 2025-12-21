@@ -27,14 +27,16 @@
                 </thead>
                 <tbody>
                     {% for prestacion in prestaciones %}
+                    {% if prestacion %}
                     <tr>
-                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y %H:%M') if prestacion.fecha else '-' }}</td>
                         <td>{{ prestacion.paciente.apellido }}, {{ prestacion.paciente.nombre }}</td>
                         <td>{{ prestacion.descripcion }}</td>
                         <td>${{ '%.2f'|format(prestacion.monto) }}</td>
-                        <td>{{ prestacion.codigo.numero if prestacion.codigo else '-' }}</td>
+                        <td>{{ prestacion.get_codigo() or '-' }}</td>
                         <td>{{ prestacion.observaciones or '-' }}</td>
                     </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

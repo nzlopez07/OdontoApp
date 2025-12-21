@@ -141,13 +141,13 @@ def ver_paciente(id: int):
       404:
         description: Paciente no encontrado
     """
-    paciente, turnos, prestaciones, edad = PacienteService.obtener_detalle(id)
+    paciente, turnos, prestaciones, edad, totales = PacienteService.obtener_detalle(id)
     if not paciente:
         return redirect(url_for('main.listar_pacientes'))
 
     estadisticas = {
-        'total_turnos': len(turnos),
-        'total_prestaciones': len(prestaciones),
+      'total_turnos': totales['turnos'] if totales else 0,
+      'total_prestaciones': totales['prestaciones'] if totales else 0,
     }
 
     return render_template(

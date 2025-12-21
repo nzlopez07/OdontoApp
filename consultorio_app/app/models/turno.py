@@ -10,6 +10,7 @@ class Turno(db.Model):
     paciente = relationship("Paciente", back_populates="turnos")
     fecha = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
+    duracion = Column(Integer, default=30, nullable=False)  # Duración en minutos (default 30)
     detalle = Column(String, nullable=True)
     estado = Column(String, nullable=True)
     cambios_estado = relationship("CambioEstado", back_populates="turno", cascade="all, delete-orphan")
@@ -17,4 +18,4 @@ class Turno(db.Model):
     prestacion = relationship("Prestacion", back_populates="turnos")
 
     def __str__(self):
-        return f"Turno {self.id} - {self.fecha} {self.hora} - {self.estado or 'Pendiente'}"
+        return f"Turno {self.id} - {self.fecha} {self.hora} ({self.duracion}min) - {self.estado or 'Pendiente'}"

@@ -39,7 +39,7 @@ def init_default_data():
             db.session.add(obra)
     
     db.session.commit()
-    print("✅ Datos por defecto inicializados")
+    print("[OK] Datos por defecto inicializados")
 
 def run_migrations_sqlite():
     """Execute DB migrations to align schema with Prestaciones and nro_afiliado.
@@ -51,7 +51,7 @@ def run_migrations_sqlite():
     table_names = {row[0] for row in existing_tables}
 
     if 'operaciones' in table_names and 'prestaciones' not in table_names:
-        print("🔧 Migrando tabla operaciones -> prestaciones...")
+        print("[TOOLS] Migrando tabla operaciones -> prestaciones...")
         db.session.execute(text("ALTER TABLE operaciones RENAME TO prestaciones"))
         db.session.commit()
 
@@ -82,13 +82,13 @@ def run_migrations_sqlite():
         db.session.execute(text("DROP TABLE turnos"))
         db.session.execute(text("ALTER TABLE turnos_tmp RENAME TO turnos"))
         db.session.execute(text("COMMIT"))
-        print("✅ turnos migrados")
+        print("[OK] turnos migrados")
 
     # 3) Update Pacientes: carnet -> nro_afiliado
     pacientes_cols = db.session.execute(text("PRAGMA table_info('pacientes')")).fetchall()
     pacientes_col_names = {c[1] for c in pacientes_cols}
     if 'carnet' in pacientes_col_names and 'nro_afiliado' not in pacientes_col_names:
-        print("🔧 Migrando columna pacientes.carnet -> nro_afiliado...")
+        print("[TOOLS] Migrando columna pacientes.carnet -> nro_afiliado...")
         db.session.execute(text("BEGIN TRANSACTION"))
         # Build new table with same structure but renamed column
         db.session.execute(text(
@@ -118,7 +118,98 @@ def run_migrations_sqlite():
         db.session.execute(text("DROP TABLE pacientes"))
         db.session.execute(text("ALTER TABLE pacientes_tmp RENAME TO pacientes"))
         db.session.execute(text("COMMIT"))
-        print("✅ pacientes migrados")
+        print("[OK] pacientes migrados")
+
+    # 4) Add monto_unitario to practicas if missing
+    if 'practicas' in table_names:
+        practicas_cols = db.session.execute(text("PRAGMA table_info('practicas')")).fetchall()
+        practicas_col_names = {c[1] for c in practicas_cols}
+        if 'monto_unitario' not in practicas_col_names:
+            print("[TOOLS] Agregando columna monto_unitario a practicas...")
+            db.session.execute(text("ALTER TABLE practicas ADD COLUMN monto_unitario REAL NOT NULL DEFAULT 0.0"))
+            db.session.commit()
+            print("[OK] practicas.monto_unitario agregada")
+
+    # 5) Remove codigo_id from prestaciones if exists
+    if 'prestaciones' in table_names:
+        prestaciones_cols = db.session.execute(text("PRAGMA table_info('prestaciones')")).fetchall()
+        prestaciones_col_names = {c[1] for c in prestaciones_cols}
+        if 'codigo_id' in prestaciones_col_names:
+            print("[TOOLS] Eliminando columna codigo_id de prestaciones...")
+            db.session.execute(text("BEGIN TRANSACTION"))
+            
+            col_defs = []
+            for col in prestaciones_cols:
+                col_name = col[1]
+                if col_name != 'codigo_id':
+                    col_type = col[2]
+                    col_defs.append(f"{col_name} {col_type}")
+            
+            db.session.execute(text(
+                f"CREATE TABLE prestaciones_tmp ({', '.join(col_defs)})"
+            ))
+            
+            col_names = [c[1] for c in prestaciones_cols if c[1] != 'codigo_id']
+            db.session.execute(text(
+                f"INSERT INTO prestaciones_tmp ({', '.join(col_names)}) "
+                f"SELECT {', '.join(col_names)} FROM prestaciones"
+            ))
+            
+            db.session.execute(text("DROP TABLE prestaciones"))
+            db.session.execute(text("ALTER TABLE prestaciones_tmp RENAME TO prestaciones"))
+            db.session.execute(text("COMMIT"))
+            print("[OK] prestaciones.codigo_id eliminada")
+
+    # 6) Rebuild prestaciones table to ensure AUTOINCREMENT is configured
+    if 'prestaciones' in table_names:
+        print("[TOOLS] Verificando AUTOINCREMENT en prestaciones...")
+        prestaciones_sql = db.session.execute(text(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='prestaciones'"
+        )).fetchone()
+        
+        if prestaciones_sql and 'AUTOINCREMENT' not in (prestaciones_sql[0] or ''):
+            print("[TOOLS] Reconstruyendo tabla prestaciones con AUTOINCREMENT...")
+            db.session.execute(text("BEGIN TRANSACTION"))
+            
+            db.session.execute(text("""
+                CREATE TABLE prestaciones_tmp (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    paciente_id INTEGER NOT NULL,
+                    descripcion TEXT NOT NULL,
+                    monto REAL NOT NULL,
+                    fecha DATETIME NOT NULL,
+                    observaciones TEXT,
+                    FOREIGN KEY(paciente_id) REFERENCES pacientes(id)
+                )
+            """))
+            
+            db.session.execute(text("""
+                INSERT INTO prestaciones_tmp (id, paciente_id, descripcion, monto, fecha, observaciones)
+                SELECT id, paciente_id, descripcion, monto, fecha, observaciones FROM prestaciones
+            """))
+            
+            db.session.execute(text("DROP TABLE prestaciones"))
+            db.session.execute(text("ALTER TABLE prestaciones_tmp RENAME TO prestaciones"))
+            db.session.execute(text("COMMIT"))
+            print("[OK] prestaciones AUTOINCREMENT configurada")
+    
+    # 7) Agregar columna duracion a tabla turnos si no existe
+    if 'turnos' in table_names:
+        print("[TOOLS] Verificando columna duracion en turnos...")
+        turnos_cols = db.session.execute(text(
+            "PRAGMA table_info(turnos)"
+        )).fetchall()
+        
+        col_names = [c[1] for c in turnos_cols]
+        if 'duracion' not in col_names:
+            print("[TOOLS] Agregando columna duracion a turnos...")
+            try:
+                db.session.execute(text("ALTER TABLE turnos ADD COLUMN duracion INTEGER DEFAULT 30"))
+                db.session.commit()
+                print("[OK] Columna duracion agregada a turnos")
+            except Exception as e:
+                print(f"[ERROR] No se pudo agregar duracion: {e}")
+                db.session.rollback()
 
 
 def main():
@@ -132,7 +223,7 @@ def main():
             db.drop_all()
         
         db.create_all()
-        print("✅ Base de datos verificada")
+        print("[OK] Base de datos verificada")
         
         # Ejecutar migraciones (opt-in)
         if os.environ.get('FLASK_RUN_MIGRATIONS', '').lower() in ('1', 'true', 'yes'):
@@ -143,16 +234,16 @@ def main():
         if seed_flag:
             init_default_data()
         else:
-            print("⏭️  Carga de datos por defecto deshabilitada (FLASK_SEED_DEFAULTS no activo)")
+            print("[SKIP] Carga de datos por defecto deshabilitada (FLASK_SEED_DEFAULTS no activo)")
     
     # Configuración del servidor
     host = os.environ.get('FLASK_HOST', '127.0.0.1')
     port = int(os.environ.get('FLASK_PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
-    print(f"🌐 Iniciando servidor en http://{host}:{port}")
-    print("📋 Para ver ayuda: python help.py")
-    print("⚡ Para verificación rápida: python quick_start.py")
+    print(f"[SERVER] Iniciando servidor en http://{host}:{port}")
+    print("[HELP] Para ver ayuda: python help.py")
+    print("[QUICK] Para verificacion rapida: python quick_start.py")
     
     app.run(host=host, port=port, debug=debug)
 

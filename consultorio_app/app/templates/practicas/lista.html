@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Prácticas{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h2>Catálogo de Prácticas</h2>
+        <nav class="nav nav-pills gap-2">
+            <a href="{{ url_for('main.listar_practicas') }}" class="nav-link {% if not proveedor_filter %}active{% endif %}">
+                Particular
+            </a>
+            <a href="{{ url_for('main.listar_practicas', proveedor='IPSS') }}" class="nav-link {% if proveedor_filter == 'IPSS' %}active{% endif %}">
+                IPSS
+            </a>
+            <a href="{{ url_for('main.listar_practicas', proveedor='SANCOR') }}" class="nav-link {% if proveedor_filter == 'SANCOR' %}active{% endif %}">
+                SANCOR SALUD
+            </a>
+        </nav>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('main.crear_practica') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nueva Práctica
+        </a>
+    </div>
+</div>
+
+{% if practicas %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Monto Unitario</th>
+                <th>Proveedor</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for practica in practicas %}
+            <tr>
+                <td><code>{{ practica.codigo }}</code></td>
+                <td>{{ practica.descripcion }}</td>
+                <td>${{ "%.2f"|format(practica.monto_unitario) }}</td>
+                <td>
+                    {% if practica.obra_social %}
+                        {{ practica.obra_social.nombre }}
+                    {% else %}
+                        Particular
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('main.editar_practica', id=practica.id) }}" class="btn btn-sm btn-warning">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    <form method="POST" action="{{ url_for('main.eliminar_practica', id=practica.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Confirmar eliminación')">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    No hay prácticas registradas para este proveedor.
+</div>
+{% endif %}
+{% endblock %}

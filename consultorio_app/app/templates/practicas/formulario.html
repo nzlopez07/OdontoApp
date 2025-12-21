@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{% if practica %}Editar Práctica{% else %}Nueva Práctica{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>{% if practica %}Editar Práctica{% else %}Nueva Práctica{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="codigo" class="form-label">Código</label>
+                        <input type="text" class="form-control" id="codigo" name="codigo" value="{{ practica.codigo if practica else '' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <input type="text" class="form-control" id="descripcion" name="descripcion" value="{{ practica.descripcion if practica else '' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="monto_unitario" class="form-label">Monto Unitario</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="monto_unitario" name="monto_unitario" value="{{ practica.monto_unitario if practica else '0.00' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="proveedor_tipo" class="form-label">Tipo de Proveedor</label>
+                        <select class="form-select" id="proveedor_tipo" name="proveedor_tipo" onchange="toggleObraSOcial()">
+                            <option value="PARTICULAR" {% if not practica or practica.proveedor_tipo == 'PARTICULAR' %}selected{% endif %}>Particular</option>
+                            <option value="OBRA_SOCIAL" {% if practica and practica.proveedor_tipo == 'OBRA_SOCIAL' %}selected{% endif %}>Obra Social</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="obra_social_container" style="display: {% if practica and practica.proveedor_tipo == 'OBRA_SOCIAL' %}block{% else %}none{% endif %}">
+                        <label for="obra_social_id" class="form-label">Obra Social</label>
+                        <select class="form-select" id="obra_social_id" name="obra_social_id">
+                            <option value="">Seleccionar...</option>
+                            {% for os in obras_sociales %}
+                            <option value="{{ os.id }}" {% if practica and practica.obra_social_id == os.id %}selected{% endif %}>{{ os.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                        <a href="{{ url_for('main.listar_practicas') }}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">{% if practica %}Actualizar{% else %}Crear{% endif %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleObraSOcial() {
+    const select = document.getElementById('proveedor_tipo');
+    const container = document.getElementById('obra_social_container');
+    if (select.value === 'OBRA_SOCIAL') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

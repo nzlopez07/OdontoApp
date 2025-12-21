@@ -56,24 +56,24 @@ class PacienteService:
     def obtener_detalle(id_: int):
         paciente = Paciente.query.get(id_)
         if not paciente:
-            return None, None, None, None
+            return None, None, None, None, None
 
-        turnos = (
-            Turno.query.filter_by(paciente_id=id_)
-            .order_by(Turno.fecha.desc(), Turno.hora.desc())
-            .all()
-        )
-        prestaciones = (
-            Prestacion.query.filter_by(paciente_id=id_)
-            .order_by(Prestacion.fecha.desc())
-            .all()
-        )
+        turnos_q = Turno.query.filter_by(paciente_id=id_).order_by(Turno.fecha.desc(), Turno.hora.desc())
+        prestaciones_q = Prestacion.query.filter_by(paciente_id=id_).order_by(Prestacion.fecha.desc())
+
+        turnos = turnos_q.limit(5).all()
+        prestaciones = prestaciones_q.limit(5).all()
+
+        totales = {
+            'turnos': turnos_q.count(),
+            'prestaciones': prestaciones_q.count(),
+        }
 
         edad = None
         if paciente.fecha_nac:
             edad = relativedelta(date.today(), paciente.fecha_nac).years
 
-        return paciente, turnos, prestaciones, edad
+        return paciente, turnos, prestaciones, edad, totales
 
     @staticmethod
     def listar_obras_sociales():

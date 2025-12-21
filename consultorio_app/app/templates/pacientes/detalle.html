@@ -132,8 +132,17 @@
 
 <!-- Historial de turnos -->
 <div class="card mt-4">
-    <div class="card-header">
-        <h5><i class="bi bi-calendar-check"></i> Historial de Turnos</h5>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Historial de Turnos</h5>
+            <small class="text-muted">Mostrando los últimos 10</small>
+        </div>
+        <div class="btn-group btn-group-sm">
+            <span class="btn btn-outline-secondary disabled">Total: {{ estadisticas.total_turnos }}</span>
+            <a class="btn btn-outline-primary" href="{{ url_for('main.listar_turnos_paciente', paciente_id=paciente.id) }}">
+                Ver todos
+            </a>
+        </div>
     </div>
     <div class="card-body">
         {% if turnos %}
@@ -173,8 +182,17 @@
 
 <!-- Historial de prestaciones -->
 <div class="card mt-4">
-    <div class="card-header">
-        <h5><i class="bi bi-clipboard-data"></i> Historial de Prestaciones</h5>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> Historial de Prestaciones</h5>
+            <small class="text-muted">Mostrando las últimas 10</small>
+        </div>
+        <div class="btn-group btn-group-sm">
+            <span class="btn btn-outline-secondary disabled">Total: {{ estadisticas.total_prestaciones }}</span>
+            <a class="btn btn-outline-primary" href="{{ url_for('main.listar_prestaciones_paciente', paciente_id=paciente.id) }}">
+                Ver todas
+            </a>
+        </div>
     </div>
     <div class="card-body">
         {% if prestaciones %}
@@ -191,13 +209,15 @@
                 </thead>
                 <tbody>
                     {% for prestacion in prestaciones %}
+                    {% if prestacion %}
                     <tr>
-                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ prestacion.codigo.codigo if prestacion.codigo else '-' }}</td>
+                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y') if prestacion.fecha else '-' }}</td>
+                        <td>{{ prestacion.get_codigo() or '-' }}</td>
                         <td>{{ prestacion.descripcion }}</td>
                         <td>${{ "%.2f"|format(prestacion.monto) }}</td>
                         <td>{{ prestacion.observaciones or '-' }}</td>
                     </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

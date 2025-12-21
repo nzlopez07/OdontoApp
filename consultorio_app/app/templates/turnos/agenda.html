@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda de Turnos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>Agenda de Turnos</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('main.nuevo_turno') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nuevo Turno
+            </a>
+        </div>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <a href="{{ url_for('main.listar_turnos', fecha_inicio=semana_anterior.strftime('%Y-%m-%d')) }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-left"></i> Semana Anterior
+                    </a>
+                    
+                    <h5 class="mb-0">
+                        <strong>{{ fecha_inicio.strftime('%d/%m/%Y') }} - {{ fecha_fin.strftime('%d/%m/%Y') }}</strong>
+                    </h5>
+                    
+                    <a href="{{ url_for('main.listar_turnos', fecha_inicio=semana_siguiente.strftime('%Y-%m-%d')) }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                        Semana Siguiente <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agenda Calendar (1 hora por fila visual con bloques proporcionados) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-0" style="overflow-x: auto;">
+                    <div class="agenda-grid">
+                        <!-- Columna de horas -->
+                        <div class="hours-col">
+                            <div class="day-header-placeholder">&nbsp;</div>
+                            <div class="day-body" style="height: var(--agenda-height)">
+                                  {% for label in horas_labels %}
+                                  <div class="hour-marker {% if loop.first %}first{% elif loop.last %}last{% endif %}"
+                                      style="top: {{ horas_marcadores[loop.index0] }}%">{{ label }}</div>
+                                  {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Columnas por día -->
+                        {% for dia_nombre in ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'] %}
+                        <div class="day-col">
+                            <div class="day-header">
+                                <div class="dia-nombre">{{ dia_nombre }}</div>
+                                <div class="dia-fecha">{{ semana[dia_nombre].fecha.strftime('%d/%m') }}</div>
+                            </div>
+                            <div class="day-body" style="height: var(--agenda-height)">
+                                <!-- bloques de turnos posicionados -->
+                                {% for bloque in semana[dia_nombre].bloques %}
+                                <a href="{{ url_for('main.ver_turno', turno_id=bloque.turno.id) }}"
+                                   class="turno-card estado-{{ bloque.turno.estado | lower }}{% if bloque.turno.duracion >= 60 %} turno-largo{% endif %}"
+                                   title="{{ bloque.turno.hora.strftime('%H:%M') }} · {{ bloque.turno.paciente.nombre }} {{ bloque.turno.paciente.apellido }} — {{ bloque.turno.duracion }}min{% if bloque.turno.detalle %} — {{ bloque.turno.detalle }}{% endif %} ({{ bloque.turno.estado }})"
+                                   data-turno-id="{{ bloque.turno.id }}"
+                                   style="top: {{ bloque.top_pct }}%; height: {{ bloque.height_pct }}%">
+                                    <div class="turno-label">
+                                        <span class="label-hora">{{ bloque.turno.hora.strftime('%H:%M') }}</span>
+                                        <span class="label-sep">·</span>
+                                        <span class="label-paciente">{{ bloque.turno.paciente.nombre }} {{ bloque.turno.paciente.apellido }}</span>
+                                    </div>
+                                    {% if bloque.turno.duracion >= 60 %}
+                                    <div class="turno-extra">
+                                        <div class="turno-duracion">{{ bloque.turno.duracion }} minutos</div>
+                                        {% if bloque.turno.detalle %}
+                                        <div class="turno-detalle">{{ bloque.turno.detalle }}</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --hour-height: 64px;           /* altura visual por hora */
+        --header-height: 48px;         /* altura consistente del encabezado */
+        --hours-col-width: 120px;      /* ancho fijo de la columna de horas */
+    }
+
+    .agenda-grid {
+        display: grid;
+        grid-template-columns: var(--hours-col-width) repeat(6, 1fr);
+        gap: 0;
+        width: 100%;
+        --agenda-height: calc(var(--hour-height) * 13); /* 8:00 a 21:00 = 13 horas */
+    }
+    
+    .hours-col { width: var(--hours-col-width); min-width: var(--hours-col-width); }
+    .day-col { min-width: 140px; }
+
+    .day-header, .day-header-placeholder {
+        background: #0d6efd;
+        color: #fff;
+        height: var(--header-height);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        text-align: center;
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #0b5ed7;
+    }
+
+    .hours-col .day-header-placeholder {
+        background: #e9ecef;
+        color: #212529;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .day-body {
+        position: relative;
+        border-right: 1px solid #dee2e6;
+        /* líneas de hora perfectas y alineadas usando gradiente repetido */
+        background: repeating-linear-gradient(
+            to bottom,
+            #e9ecef 0,
+            #e9ecef 1px,
+            rgba(0,0,0,0) 1px,
+            rgba(0,0,0,0) var(--hour-height)
+        );
+        overflow: hidden;
+    }
+
+    .hour-marker {
+        position: absolute;
+        right: 8px;
+        left: auto;
+        transform: translateY(-50%);
+        font-size: 0.75rem;
+        color: #6c757d;
+        background: rgba(255,255,255,0.6);
+        padding: 2px 4px;
+        border-radius: 3px;
+        z-index: 1;
+    }
+
+    .hour-marker.first { transform: translateY(0); }
+    .hour-marker.last { transform: translateY(-100%); }
+
+    .dia-nombre { font-weight: bold; font-size: 0.95rem; }
+    .dia-fecha { font-size: 0.85rem; opacity: 0.9; }
+
+    .turno-card {
+        position: absolute;
+        left: 6px; right: 6px;
+        display: block;
+        padding: 4px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        color: white;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        transition: all 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .turno-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        text-decoration: none;
+    }
+
+    .turno-paciente {
+        font-weight: bold;
+        margin-bottom: 2px;
+        word-wrap: break-word;
+    }
+
+    .turno-hora {
+        font-size: 0.7rem;
+        opacity: 0.9;
+    }
+
+    .turno-detalle {
+        font-size: 0.65rem;
+        margin-top: 1px;
+        opacity: 0.85;
+    }
+
+    .turno-estado {
+        font-size: 0.65rem;
+        margin-top: 2px;
+        opacity: 0.8;
+        font-style: italic;
+    }
+
+    .turno-label {
+        position: absolute;
+        top: 4px;
+        left: 6px;
+        right: 6px;
+        font-weight: 600;
+        font-size: 0.72rem;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+    }
+    .turno-label .label-hora { opacity: 0.95; }
+    .turno-label .label-sep { margin: 0 4px; opacity: 0.7; }
+    .turno-label .label-paciente { opacity: 1; }
+
+    .turno-extra {
+        position: absolute;
+        top: 20px;
+        left: 6px;
+        right: 6px;
+        bottom: 4px;
+        font-size: 0.68rem;
+        line-height: 1.3;
+        opacity: 0.9;
+        overflow: hidden;
+        pointer-events: none;
+    }
+    
+    .turno-duracion {
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+    
+    .turno-detalle {
+        font-size: 0.66rem;
+        opacity: 0.85;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+
+    /* Estado colors */
+    .turno-card.estado-pendiente { background: #ffd24d; color: #212529; }
+
+    .turno-card.estado-confirmado { background: #1cb3d8; color: #fff; }
+
+    .turno-card.estado-atendido { background: #198754; color: #fff; }
+
+    .turno-card.estado-noatendido { background: #dc3545; color: #fff; }
+
+    .turno-card.estado-cancelado { background: #6c757d; color: #fff; text-decoration: line-through; }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+        .day-col, .hours-col { min-width: 120px; }
+        .turno-card { font-size: 0.7rem; }
+        .dia-nombre { font-size: 0.85rem; }
+        .dia-fecha { font-size: 0.75rem; }
+    }
+
+    @media (max-width: 768px) {
+        .agenda-grid { grid-template-columns: 60px repeat(6, 1fr); }
+        .day-col, .hours-col { min-width: 100px; }
+        .turno-card { font-size: 0.65rem; padding: 4px; }
+    }
+</style>
+
+<script>
+    // Añadir funcionalidad click/hover a los turnos
+    document.querySelectorAll('.turno-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            e.preventDefault();
+            const turnoId = this.getAttribute('data-turno-id');
+            const title = this.getAttribute('title');
+            
+            // Redirect a la página de detalle
+            window.location.href = this.href;
+        });
+    });
+</script>
+{% endblock %}

@@ -7,6 +7,8 @@ from .localidad import Localidad
 from .obraSocial import ObraSocial
 from .prestacion import Prestacion
 from .codigo import Codigo
+from .practica import Practica
+from .prestacion_practica import PrestacionPractica
 
 # Lista de todos los modelos para facilitar la importación
 __all__ = [
@@ -17,5 +19,7 @@ __all__ = [
     'Localidad',
     'ObraSocial',
     'Prestacion',
-    'Codigo'
+    'Codigo',
+    'Practica',
+    'PrestacionPractica'
 ]

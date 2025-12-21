@@ -10,40 +10,232 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Paciente</label>
-                    <select name="paciente_id" class="form-select" required>
-                        <option value="" disabled selected>Seleccione...</option>
+                    <select name="paciente_id" class="form-select" id="paciente_select" onchange="cargarPracticas()" required>
+                        <option value="" disabled {% if not paciente_id %}selected{% endif %}>Seleccione...</option>
                         {% for paciente in pacientes %}
-                        <option value="{{ paciente.id }}">{{ paciente.apellido }}, {{ paciente.nombre }} (DNI: {{ paciente.dni }})</option>
+                        <option value="{{ paciente.id }}" {% if paciente_id and paciente.id == paciente_id|int %}selected{% endif %}>{{ paciente.apellido }}, {{ paciente.nombre }} (DNI: {{ paciente.dni }})</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Código (opcional)</label>
-                    <select name="codigo_id" class="form-select">
-                        <option value="">Sin código</option>
-                        {% for codigo in codigos %}
-                        <option value="{{ codigo.id }}">{{ codigo.numero }} - {{ codigo.descripcion }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-8">
                     <label class="form-label">Descripción</label>
                     <input type="text" name="descripcion" class="form-control" required>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Monto</label>
-                    <input type="number" name="monto" step="0.01" min="0" class="form-control" required>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-8">
+                    <label class="form-label">Agregar Práctica</label>
+                    <select class="form-select" id="practica_select">
+                        <option value="">Seleccionar práctica...</option>
+                    </select>
                 </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-success w-100" onclick="agregarPractica()">
+                        <i class="bi bi-plus-circle"></i> Agregar
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="form-label">Prácticas Seleccionadas</label>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th>Monto Unitario</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="practicas_seleccionadas">
+                            <tr id="empty_row">
+                                <td colspan="4" class="text-center text-muted">No hay prácticas seleccionadas</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <th colspan="2" class="text-end">Subtotal:</th>
+                                <th><span id="subtotal">$0.00</span></th>
+                                <th></th>
+                            </tr>
+                            <tr class="table-light">
+                                <th colspan="2" class="text-end">Descuento %:</th>
+                                <th><span id="descuento_porcentaje_monto">$0.00</span></th>
+                                <th></th>
+                            </tr>
+                            <tr class="table-light">
+                                <th colspan="2" class="text-end">Descuento fijo:</th>
+                                <th><span id="descuento_fijo_monto">$0.00</span></th>
+                                <th></th>
+                            </tr>
+                            <tr class="table-light">
+                                <th colspan="2" class="text-end">Total:</th>
+                                <th><span id="monto_total">$0.00</span></th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label class="form-label">Descuento porcentual</label>
+                    <div class="input-group">
+                        <span class="input-group-text">%</span>
+                        <input type="number" step="0.01" min="0" name="descuento_porcentaje" id="descuento_porcentaje" class="form-control" placeholder="0" oninput="actualizarMontos()">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Descuento fijo</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" min="0" name="descuento_fijo" id="descuento_fijo" class="form-control" placeholder="0" oninput="actualizarMontos()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
                 <div class="col-12">
                     <label class="form-label">Observaciones</label>
                     <textarea name="observaciones" class="form-control" rows="3"></textarea>
                 </div>
             </div>
+
             <div class="d-flex justify-content-end gap-2 mt-3">
+                {% if paciente_id %}
+                <a href="{{ url_for('main.ver_paciente', id=paciente_id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                {% else %}
                 <a href="{{ url_for('main.listar_prestaciones') }}" class="btn btn-outline-secondary">Cancelar</a>
+                {% endif %}
                 <button type="submit" class="btn btn-primary">Guardar</button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+let practicasDisponibles = [];
+let practicasSeleccionadas = [];
+
+function cargarPracticas() {
+    const pacienteId = document.getElementById('paciente_select').value;
+    if (!pacienteId) return;
+    
+    fetch(`/api/pacientes/${pacienteId}/practicas`)
+        .then(r => r.json())
+        .then(data => {
+            practicasDisponibles = data.practicas || [];
+            actualizarSelectPracticas();
+        })
+        .catch(e => console.error('Error cargando prácticas:', e));
+}
+
+function actualizarSelectPracticas() {
+    const select = document.getElementById('practica_select');
+    select.innerHTML = '<option value="">Seleccionar práctica...</option>';
+    
+    practicasDisponibles.forEach(p => {
+        const yaSeleccionada = practicasSeleccionadas.find(ps => ps.id === p.id);
+        if (!yaSeleccionada) {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.dataset.codigo = p.codigo;
+            option.dataset.descripcion = p.descripcion;
+            option.dataset.monto = p.monto_unitario;
+            option.textContent = `${p.codigo} - ${p.descripcion} ($${p.monto_unitario.toFixed(2)})`;
+            select.appendChild(option);
+        }
+    });
+}
+
+function agregarPractica() {
+    const select = document.getElementById('practica_select');
+    const option = select.options[select.selectedIndex];
+    
+    if (!option || !option.value) return;
+    
+    const practica = {
+        id: parseInt(option.value),
+        codigo: option.dataset.codigo,
+        descripcion: option.dataset.descripcion,
+        monto_unitario: parseFloat(option.dataset.monto)
+    };
+    
+    practicasSeleccionadas.push(practica);
+    actualizarTablaPracticas();
+    actualizarSelectPracticas();
+    select.value = '';
+}
+
+function eliminarPractica(practicaId) {
+    practicasSeleccionadas = practicasSeleccionadas.filter(p => p.id !== practicaId);
+    actualizarTablaPracticas();
+    actualizarSelectPracticas();
+}
+
+function obtenerDescuentos() {
+    const porcInput = document.getElementById('descuento_porcentaje');
+    const fijoInput = document.getElementById('descuento_fijo');
+    const descuentoPorcentaje = Math.max(0, parseFloat(porcInput.value) || 0);
+    const descuentoFijo = Math.max(0, parseFloat(fijoInput.value) || 0);
+    return { descuentoPorcentaje, descuentoFijo };
+}
+
+function actualizarTablaPracticas() {
+    const tbody = document.getElementById('practicas_seleccionadas');
+    tbody.innerHTML = '';
+    
+    if (practicasSeleccionadas.length === 0) {
+        tbody.innerHTML = '<tr id="empty_row"><td colspan="4" class="text-center text-muted">No hay prácticas seleccionadas</td></tr>';
+        actualizarMontos(0);
+        return;
+    }
+    
+    let subtotal = 0;
+    practicasSeleccionadas.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><code>${p.codigo}</code></td>
+            <td>${p.descripcion}</td>
+            <td>$${p.monto_unitario.toFixed(2)}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" onclick="eliminarPractica(${p.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+                <input type="hidden" name="practica_ids[]" value="${p.id}">
+            </td>
+        `;
+        tbody.appendChild(tr);
+        subtotal += p.monto_unitario;
+    });
+    
+    actualizarMontos(subtotal);
+}
+
+function actualizarMontos(subtotalOverride = null) {
+    const subtotal = subtotalOverride !== null ? subtotalOverride : practicasSeleccionadas.reduce((acc, p) => acc + p.monto_unitario, 0);
+    const { descuentoPorcentaje, descuentoFijo } = obtenerDescuentos();
+    const descuentoMontoPorcentaje = subtotal * (descuentoPorcentaje / 100);
+    const descuentoMontoFijo = descuentoFijo;
+    let total = subtotal - descuentoMontoPorcentaje - descuentoMontoFijo;
+    if (total < 0) total = 0;
+
+    document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('descuento_porcentaje_monto').textContent = `$${descuentoMontoPorcentaje.toFixed(2)}`;
+    document.getElementById('descuento_fijo_monto').textContent = `$${descuentoMontoFijo.toFixed(2)}`;
+    document.getElementById('monto_total').textContent = `$${total.toFixed(2)}`;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    actualizarMontos();
+});
+{% if paciente_id %}
+window.addEventListener('DOMContentLoaded', () => {
+    cargarPracticas();
+});
+{% endif %}
+</script>
 {% endblock %}

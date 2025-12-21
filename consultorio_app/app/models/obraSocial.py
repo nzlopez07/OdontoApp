@@ -10,5 +10,7 @@ class ObraSocial(db.Model):
     codigo = Column(String(20), nullable=True)  # Para un identificador externo si lo tenés
 
     pacientes = relationship("Paciente", back_populates="obra_social")
+    # Relación con prácticas específicas de la obra social
+    practicas = relationship("Practica", back_populates="obra_social")
     
     # Obras sociales operativas: IPSS - SANCOR SALUD - PARTICULAR

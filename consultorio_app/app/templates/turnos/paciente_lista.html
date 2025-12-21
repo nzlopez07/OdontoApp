@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Turnos - {{ paciente.apellido }}, {{ paciente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-calendar-check"></i> Turnos de {{ paciente.apellido }}, {{ paciente.nombre }}</h4>
+        <small class="text-muted">Total: {{ total }} turnos</small>
+    </div>
+    <div class="btn-group">
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.ver_paciente', id=paciente.id) }}">
+            <i class="bi bi-arrow-left"></i> Volver al paciente
+        </a>
+        <a class="btn btn-primary" href="{{ url_for('main.nuevo_turno') }}?paciente_id={{ paciente.id }}">
+            <i class="bi bi-calendar-plus"></i> Nuevo turno
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if turnos %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Estado</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for turno in turnos %}
+                    <tr>
+                        <td>{{ turno.fecha.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ turno.hora.strftime('%H:%M') }}</td>
+                        <td>{{ turno.estado or 'Sin estado' }}</td>
+                        <td>{{ turno.detalle or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        <nav aria-label="Paginación" class="mt-3">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item {% if pagina_actual == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina=1"><i class="bi bi-skip-backward"></i> Primera</a>
+                </li>
+                <li class="page-item {% if pagina_actual == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina={{ pagina_actual - 1 }}"><i class="bi bi-chevron-left"></i> Anterior</a>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link">Página {{ pagina_actual }} de {{ total_paginas }}</span>
+                </li>
+                <li class="page-item {% if pagina_actual == total_paginas %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina={{ pagina_actual + 1 }}">Siguiente <i class="bi bi-chevron-right"></i></a>
+                </li>
+                <li class="page-item {% if pagina_actual == total_paginas %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina={{ total_paginas }}">Última <i class="bi bi-skip-forward"></i></a>
+                </li>
+            </ul>
+        </nav>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-calendar-x display-4 text-muted"></i>
+            <h6 class="text-muted mt-2">No hay turnos registrados</h6>
+            <a href="{{ url_for('main.nuevo_turno') }}?paciente_id={{ paciente.id }}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-calendar-plus"></i> Programar primer turno
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

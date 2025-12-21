@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from app.database.session import DatabaseSession
 from app.models import Paciente, Turno, Prestacion, Estado, CambioEstado
 from app.services import BusquedaUtils
+from app.services.prestacion_service import PrestacionService
 from . import main_bp
 
 
@@ -354,3 +355,19 @@ def api_actualizar_turnos_vencidos():
         'mensaje': f'Se actualizaron {cambios} turnos a NoAtendido',
         'cantidad': cambios
     })
+
+
+@main_bp.route('/api/pacientes/<int:paciente_id>/practicas')
+def api_listar_practicas_paciente(paciente_id: int):
+    practicas = PrestacionService.listar_practicas_para_paciente(paciente_id)
+    practicas_data = [
+        {
+            'id': p.id,
+            'codigo': p.codigo,
+            'descripcion': p.descripcion,
+            'proveedor_tipo': p.proveedor_tipo,
+            'monto_unitario': p.monto_unitario,
+        }
+        for p in practicas
+    ]
+    return jsonify({'paciente_id': paciente_id, 'practicas': practicas_data})

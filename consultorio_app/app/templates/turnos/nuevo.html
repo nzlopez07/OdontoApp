@@ -23,7 +23,18 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Hora</label>
-                    <input type="time" name="hora" class="form-control" required>
+                    <input type="time" name="hora" class="form-control" step="300" required>
+                    <small class="text-muted">Puede ingresar minutos libres (ej: 12:15)</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Duración</label>
+                    <div class="input-group">
+                        <input type="number" name="duracion_horas" class="form-control" min="0" max="8" value="0">
+                        <span class="input-group-text">h</span>
+                        <input type="number" name="duracion_minutos" class="form-control" min="0" max="59" step="5" value="30">
+                        <span class="input-group-text">min</span>
+                    </div>
+                    <small class="text-muted">Ej: 1 h 50 min</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Estado</label>

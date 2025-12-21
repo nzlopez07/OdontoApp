@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Prestaciones - {{ paciente.apellido }}, {{ paciente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-clipboard-data"></i> Prestaciones de {{ paciente.apellido }}, {{ paciente.nombre }}</h4>
+        <small class="text-muted">Total: {{ total }} prestaciones</small>
+    </div>
+    <div class="btn-group">
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.ver_paciente', id=paciente.id) }}">
+            <i class="bi bi-arrow-left"></i> Volver al paciente
+        </a>
+        <a class="btn btn-primary" href="{{ url_for('main.nueva_prestacion') }}?paciente_id={{ paciente.id }}">
+            <i class="bi bi-clipboard-plus"></i> Nueva prestación
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-2">
+            <div class="col-md-4">
+                <input type="text" name="descripcion" class="form-control" placeholder="Descripción" value="{{ filtros.get('descripcion', '') }}">
+            </div>
+            <div class="col-md-3">
+                <input type="number" name="monto_min" class="form-control" placeholder="Monto mínimo" step="0.01" value="{{ filtros.get('monto_min', '') }}">
+            </div>
+            <div class="col-md-3">
+                <input type="number" name="monto_max" class="form-control" placeholder="Monto máximo" step="0.01" value="{{ filtros.get('monto_max', '') }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if prestaciones %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Monto</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prestacion in prestaciones %}
+                    {% if prestacion %}
+                    <tr>
+                        <td>{{ prestacion.fecha.strftime('%d/%m/%Y %H:%M') if prestacion.fecha else '-' }}</td>
+                        <td>{{ prestacion.get_codigo() or '-' }}</td>
+                        <td>{{ prestacion.descripcion }}</td>
+                        <td>${{ '%.2f'|format(prestacion.monto) }}</td>
+                        <td>{{ prestacion.observaciones or '-' }}</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        <nav aria-label="Paginación" class="mt-3">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item {% if pagina_actual == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina=1{% if filtros.get('descripcion') %}&descripcion={{ filtros['descripcion'] }}{% endif %}{% if filtros.get('monto_min') %}&monto_min={{ filtros['monto_min'] }}{% endif %}{% if filtros.get('monto_max') %}&monto_max={{ filtros['monto_max'] }}{% endif %}"><i class="bi bi-skip-backward"></i> Primera</a>
+                </li>
+                <li class="page-item {% if pagina_actual == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina={{ pagina_actual - 1 }}{% if filtros.get('descripcion') %}&descripcion={{ filtros['descripcion'] }}{% endif %}{% if filtros.get('monto_min') %}&monto_min={{ filtros['monto_min'] }}{% endif %}{% if filtros.get('monto_max') %}&monto_max={{ filtros['monto_max'] }}{% endif %}"><i class="bi bi-chevron-left"></i> Anterior</a>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link">Página {{ pagina_actual }} de {{ total_paginas }}</span>
+                </li>
+                <li class="page-item {% if pagina_actual == total_paginas %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina={{ pagina_actual + 1 }}{% if filtros.get('descripcion') %}&descripcion={{ filtros['descripcion'] }}{% endif %}{% if filtros.get('monto_min') %}&monto_min={{ filtros['monto_min'] }}{% endif %}{% if filtros.get('monto_max') %}&monto_max={{ filtros['monto_max'] }}{% endif %}">Siguiente <i class="bi bi-chevron-right"></i></a>
+                </li>
+                <li class="page-item {% if pagina_actual == total_paginas %}disabled{% endif %}">
+                    <a class="page-link" href="?pagina={{ total_paginas }}{% if filtros.get('descripcion') %}&descripcion={{ filtros['descripcion'] }}{% endif %}{% if filtros.get('monto_min') %}&monto_min={{ filtros['monto_min'] }}{% endif %}{% if filtros.get('monto_max') %}&monto_max={{ filtros['monto_max'] }}{% endif %}">Última <i class="bi bi-skip-forward"></i></a>
+                </li>
+            </ul>
+        </nav>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-clipboard-x display-4 text-muted"></i>
+            <h6 class="text-muted mt-2">No hay prestaciones registradas</h6>
+            <a href="{{ url_for('main.nueva_prestacion') }}?paciente_id={{ paciente.id }}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-clipboard-plus"></i> Registrar primera prestación
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
