@@ -1,5 +1,7 @@
 """
-Inicializador del módulo conversacion (placeholder para futura integración WhatsApp).
+Inicializador del módulo conversacion (integración de conversación/WhatsApp).
 """
 
-__all__ = []
+from .conversation_service import ConversationService, ConversationReply
+
+__all__ = ["ConversationService", "ConversationReply"]

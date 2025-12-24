@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Gasto{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-plus"></i> Registrar Nuevo Gasto</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('finanzas.nuevo_gasto') }}">
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción *</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="descripcion" 
+                                   name="descripcion" 
+                                   required
+                                   placeholder="Ej: Compra de materiales odontológicos">
+                            <small class="form-text text-muted">Descripción clara del gasto</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="monto" class="form-label">Monto *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="monto" 
+                                               name="monto" 
+                                               step="0.01"
+                                               min="0.01"
+                                               required
+                                               placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fecha" class="form-label">Fecha *</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="fecha" 
+                                           name="fecha" 
+                                           value="{{ fecha_hoy }}"
+                                           required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="categoria" class="form-label">Categoría *</label>
+                            <select class="form-select" id="categoria" name="categoria" required>
+                                <option value="">Seleccione una categoría</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                <strong>MATERIAL:</strong> Herramientas, equipos<br>
+                                <strong>INSUMO:</strong> Materiales de uso diario<br>
+                                <strong>MATRICULA:</strong> Matrículas profesionales<br>
+                                <strong>CURSO:</strong> Capacitaciones, formación<br>
+                                <strong>OPERATIVO:</strong> Alquiler, servicios, impuestos<br>
+                                <strong>OTRO:</strong> Otros gastos
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observaciones" class="form-label">Observaciones</label>
+                            <textarea class="form-control" 
+                                      id="observaciones" 
+                                      name="observaciones" 
+                                      rows="3"
+                                      placeholder="Detalles adicionales (opcional)"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('finanzas.gastos') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Guardar Gasto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

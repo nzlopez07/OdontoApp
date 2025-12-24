@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app.database import db
 from app.services.prestacion import ListarPrestacionesService, CrearPrestacionService
 from app.services.paciente import BuscarPacientesService
@@ -13,12 +14,14 @@ from . import main_bp
 
 
 @main_bp.route('/prestaciones')
+@login_required
 def listar_prestaciones():
     prestaciones = ListarPrestacionesService.listar_todas()
     return render_template('prestaciones/lista.html', prestaciones=prestaciones)
 
 
 @main_bp.route('/pacientes/<int:paciente_id>/prestaciones')
+@login_required
 def listar_prestaciones_paciente(paciente_id: int):
     try:
         paciente = BuscarPacientesService.obtener_por_id(paciente_id)
@@ -56,6 +59,7 @@ def listar_prestaciones_paciente(paciente_id: int):
 
 
 @main_bp.route('/prestaciones/nueva', methods=['GET', 'POST'])
+@login_required
 def nueva_prestacion():
     paciente_id = request.args.get('paciente_id')
     

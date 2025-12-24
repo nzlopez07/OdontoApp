@@ -3,6 +3,7 @@ import json
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, current_app
+from flask_login import login_required
 from app.models import Prestacion, ObraSocial, Localidad
 from app.services.paciente import (
     BuscarPacientesService,
@@ -24,6 +25,7 @@ from . import main_bp
 
 
 @main_bp.route('/media/<path:filename>')
+@login_required
 def media_file(filename: str):
   """Sirve archivos estáticos ubicados en app/media (imagen y hoja del odontograma)."""
   media_dir = os.path.join(current_app.root_path, 'media')
@@ -31,6 +33,7 @@ def media_file(filename: str):
 
 
 @main_bp.route('/odontograma/slots', methods=['POST'])
+@login_required
 def guardar_slots_odontograma():
   """Guarda la configuración de slots calibrados para el odontograma."""
   data = request.get_json(silent=True) or {}
@@ -46,6 +49,7 @@ def guardar_slots_odontograma():
 
 
 @main_bp.route('/pacientes')
+@login_required
 def listar_pacientes():
     """Lista todos los pacientes con funcionalidad de búsqueda.
     
@@ -71,6 +75,7 @@ def listar_pacientes():
 
 
 @main_bp.route('/pacientes/nuevo', methods=['GET', 'POST'])
+@login_required
 def crear_paciente():
     """Crear un nuevo paciente.
     
@@ -168,6 +173,7 @@ def crear_paciente():
 
 
 @main_bp.route('/pacientes/<int:id>')
+@login_required
 def ver_paciente(id: int):
     """Ver detalles de un paciente.
     
@@ -227,6 +233,7 @@ def ver_paciente(id: int):
 
 
 @main_bp.route('/pacientes/<int:id>/odontograma')
+@login_required
 def ver_odontograma_paciente(id: int):
     """Vista del odontograma versionado de un paciente.
     Si no existe odontograma, crea uno vacío como versión actual.
@@ -258,6 +265,7 @@ def ver_odontograma_paciente(id: int):
 
 
 @main_bp.route('/pacientes/<int:id>/odontograma/datos')
+@login_required
 def obtener_datos_odontograma(id: int):
     """Devuelve en JSON la versión del odontograma solicitada o la actual."""
     try:
@@ -314,6 +322,7 @@ def obtener_datos_odontograma(id: int):
 
 
 @main_bp.route('/pacientes/<int:id>/odontograma/version', methods=['POST'])
+@login_required
 def crear_version_odontograma(id: int):
     """Crea una nueva versión de odontograma aplicando cambios de caras."""
     data = request.get_json(silent=True) or {}
@@ -383,6 +392,7 @@ def crear_version_odontograma(id: int):
 
 
 @main_bp.route('/pacientes/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
 def editar_paciente(id: int):
     """Editar un paciente existente."""
     try:

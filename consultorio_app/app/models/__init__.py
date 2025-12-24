@@ -10,6 +10,9 @@ from .codigo import Codigo
 from .practica import Practica
 from .prestacion_practica import PrestacionPractica
 from .odontograma import Odontograma, OdontogramaCara
+from .conversation import Conversation
+from .usuario import Usuario
+from .gasto import Gasto
 
 # Lista de todos los modelos para facilitar la importación
 __all__ = [
@@ -24,5 +27,8 @@ __all__ = [
     'Practica',
     'PrestacionPractica',
     'Odontograma',
-    'OdontogramaCara'
+    'OdontogramaCara',
+    'Conversation',
+    'Usuario',
+    'Gasto'
 ]

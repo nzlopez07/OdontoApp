@@ -1,4 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app.services.practica import (
     ListarPracticasService,
     CrearPracticaService,
@@ -15,6 +16,7 @@ from . import main_bp
 
 
 @main_bp.route('/practicas')
+@login_required
 def listar_practicas():
     proveedor_filter = request.args.get('proveedor', '').strip()
     
@@ -36,6 +38,7 @@ def listar_practicas():
 
 
 @main_bp.route('/practicas/nueva', methods=['GET', 'POST'])
+@login_required
 def crear_practica():
     obras_sociales = ObraSocial.query.all()
     
@@ -67,6 +70,7 @@ def crear_practica():
 
 
 @main_bp.route('/practicas/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
 def editar_practica(id: int):
     try:
         practica = ListarPracticasService.obtener_por_id(id)
@@ -104,6 +108,7 @@ def editar_practica(id: int):
 
 
 @main_bp.route('/practicas/<int:id>/eliminar', methods=['POST'])
+@login_required
 def eliminar_practica(id: int):
     try:
         resultado = EliminarPracticaService.execute(id)

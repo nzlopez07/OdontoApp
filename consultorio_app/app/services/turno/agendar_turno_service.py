@@ -33,9 +33,10 @@ class AgendarTurnoService:
         hora: time,
         duracion: int = 30,
         detalle: str = None,
+        estado: str = 'Confirmado',
     ) -> Turno:
         """
-        Agenda un nuevo turno. Los turnos creados vía web siempre son Confirmados.
+        Agenda un nuevo turno.
         
         Args:
             paciente_id: ID del paciente (requerido)
@@ -43,6 +44,7 @@ class AgendarTurnoService:
             hora: Hora del turno (requerido)
             duracion: Duración en minutos (default 30)
             detalle: Detalles/notas del turno (opcional)
+            estado: Estado inicial del turno (default 'Confirmado'; use 'Pendiente' para WhatsApp)
         
         Returns:
             Turno agendado
@@ -90,14 +92,14 @@ class AgendarTurnoService:
             # Verificar solapamiento
             AgendarTurnoService._verificar_solapamiento(fecha, hora, duracion)
             
-            # Crear turno (siempre Confirmado para web)
+            # Crear turno
             turno = Turno(
                 paciente_id=paciente_id,
                 fecha=fecha,
                 hora=hora,
                 duracion=duracion,
                 detalle=detalle.strip() if detalle else None,
-                estado='Confirmado',  # Turno web = Confirmado
+                estado=estado,  # Soporta 'Confirmado' (web) y 'Pendiente' (WhatsApp)
             )
             
             session.add(turno)
@@ -123,7 +125,10 @@ class AgendarTurnoService:
         inicio_min = hora.hour * 60 + hora.minute
         fin_min = inicio_min + duracion
         
-        query = Turno.query.filter(Turno.fecha == fecha)
+        query = Turno.query.filter(
+            Turno.fecha == fecha,
+            ~Turno.estado.in_(['Cancelado', 'NoAtendido'])  # No bloquean slots (se pueden reasignar)
+        )
         if turno_id_excluir:
             query = query.filter(Turno.id != turno_id_excluir)
         

@@ -76,11 +76,13 @@ class ObtenerAgendaService:
             }
         
         # Query turnos de la semana, ordenados por fecha y hora
+        # Excluir solo cancelados; NoAtendido se muestra en agenda (reserva que no se atendió)
         turnos = session.query(Turno).options(
             joinedload(Turno.paciente)
         ).filter(
             Turno.fecha >= fecha_lunes,
-            Turno.fecha <= fecha_domingo
+            Turno.fecha <= fecha_domingo,
+            Turno.estado != 'Cancelado'  # Solo excluir Cancelado
         ).order_by(Turno.fecha, Turno.hora).all()
         
         # Calcular constantes de positioning
@@ -185,10 +187,12 @@ class ObtenerAgendaService:
         session = DatabaseSession.get_instance().session
         
         # Query turnos del día
+        # Excluir solo cancelados; NoAtendido se muestra en agenda (reserva que no se atendió)
         turnos = session.query(Turno).options(
             joinedload(Turno.paciente)
         ).filter(
-            Turno.fecha == fecha
+            Turno.fecha == fecha,
+            Turno.estado != 'Cancelado'  # Solo excluir Cancelado
         ).order_by(Turno.hora).all()
         
         # Calcular constantes

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Administración{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="bi bi-gear-fill"></i> Panel de Administración</h1>
+    </div>
+</div>
+
+<!-- Estadísticas del Sistema -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card border-primary">
+            <div class="card-body text-center">
+                <i class="bi bi-people-fill text-primary" style="font-size: 2rem;"></i>
+                <h3 class="mt-2">{{ stats.usuarios }}</h3>
+                <p class="text-muted mb-0">Usuarios</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card border-success">
+            <div class="card-body text-center">
+                <i class="bi bi-person-fill text-success" style="font-size: 2rem;"></i>
+                <h3 class="mt-2">{{ stats.pacientes }}</h3>
+                <p class="text-muted mb-0">Pacientes</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card border-info">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check-fill text-info" style="font-size: 2rem;"></i>
+                <h3 class="mt-2">{{ stats.turnos }}</h3>
+                <p class="text-muted mb-0">Turnos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card border-warning">
+            <div class="card-body text-center">
+                <i class="bi bi-clipboard-data-fill text-warning" style="font-size: 2rem;"></i>
+                <h3 class="mt-2">{{ stats.prestaciones }}</h3>
+                <p class="text-muted mb-0">Prestaciones</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información de Base de Datos -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-database"></i> Base de Datos
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Ruta:</th>
+                        <td><code>{{ db_info.ruta }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            {% if db_info.existe %}
+                                <span class="badge bg-success">Activa</span>
+                            {% else %}
+                                <span class="badge bg-danger">No encontrada</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if db_info.existe %}
+                    <tr>
+                        <th>Tamaño:</th>
+                        <td>{{ "%.2f"|format(db_info.tamano / 1024 / 1024) }} MB</td>
+                    </tr>
+                    <tr>
+                        <th>Última modificación:</th>
+                        <td>{{ db_info.ultima_modificacion }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backups -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-cloud-arrow-down"></i> Backups Recientes
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if backups %}
+                    <ul class="list-unstyled">
+                        {% for backup in backups %}
+                        <li class="mb-2">
+                            <i class="bi bi-file-earmark-zip"></i>
+                            <strong>{{ backup.nombre }}</strong><br>
+                            <small class="text-muted">
+                                {{ "%.2f"|format(backup.tamano / 1024 / 1024) }} MB - {{ backup.fecha }}
+                            </small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">No hay backups disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Usuarios del Sistema -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-people"></i> Usuarios del Sistema
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Último Login</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                        <tr>
+                            <td>{{ usuario.username }}</td>
+                            <td>{{ usuario.nombre_completo }}</td>
+                            <td>{{ usuario.email }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if usuario.rol == 'DUEÑA' else ('primary' if usuario.rol == 'ODONTOLOGA' else 'danger') }}">
+                                    {{ usuario.rol }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if usuario.activo %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if usuario.ultimo_login %}
+                                    {{ usuario.ultimo_login.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                    <span class="text-muted">Nunca</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Recientes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between">
+                <span><i class="bi bi-file-text"></i> Logs Recientes (últimas 50 líneas)</span>
+                <a href="{{ url_for('admin.ver_logs') }}" class="btn btn-sm btn-light">Ver todos</a>
+            </div>
+            <div class="card-body">
+                <pre class="bg-dark text-light p-3" style="max-height: 400px; overflow-y: auto; font-size: 0.85rem;">{% for line in log_lines %}{{ line }}{% endfor %}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

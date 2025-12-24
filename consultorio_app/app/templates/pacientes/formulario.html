@@ -118,7 +118,11 @@
                     </div>
 
                     <!-- Campos condicionales según obra social -->
-                    <div id="campos-ipss" style="display: none;">
+                    {% set obra_social_text = (paciente.obra_social.nombre|lower) if paciente and paciente.obra_social else '' %}
+                    {% set show_ipss = obra_social_text and 'ipss' in obra_social_text %}
+                    {% set show_otros = obra_social_text and ('ipss' not in obra_social_text) and ('particular' not in obra_social_text) %}
+
+                    <div id="campos-ipss" style="display: {{ 'block' if show_ipss else 'none' }};">
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label for="nro_afiliado" class="form-label">Nro Afiliado</label>
@@ -139,7 +143,7 @@
                     </div>
 
                     <!-- Campos para otras obras sociales -->
-                    <div id="campos-otros" style="display: none;">
+                    <div id="campos-otros" style="display: {{ 'block' if show_otros else 'none' }};">
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label for="carnet" class="form-label">Nro de Afiliado</label>
@@ -184,7 +188,7 @@
 // Función para mostrar/ocultar campos según obra social
 function actualizarCamposObraSocial() {
     const obraSocialSelect = document.getElementById('obra_social_id');
-    const obraSocialText = (obraSocialSelect.options[obraSocialSelect.selectedIndex]?.text || '').toLowerCase();
+    const obraSocialText = (obraSocialSelect.options[obraSocialSelect.selectedIndex]?.text || '').toLowerCase().trim();
 
     const camposIpss = document.getElementById('campos-ipss');
     const camposOtros = document.getElementById('campos-otros');

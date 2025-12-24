@@ -92,6 +92,11 @@ from .practica import (
     EliminarPracticaService,
 )
 
+from .conversacion.conversation_service import (
+    ConversationService,
+    ConversationReply,
+)
+
 __all__ = [
     # Legacy utils
     'TurnoValidaciones',
@@ -160,4 +165,8 @@ __all__ = [
     'CrearPracticaService',
     'EditarPracticaService',
     'EliminarPracticaService',
+
+    # Conversacion services
+    'ConversationService',
+    'ConversationReply',
 ]

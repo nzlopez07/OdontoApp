@@ -43,19 +43,20 @@
 
 **Objetivo:** impedir acceso no autorizado al sistema.
 
-* [ ] Crear modelo `Usuario`
-
+* [x] Crear modelo `Usuario`
   * id
   * username
   * password_hash
   * role
   * activo
-* [ ] Implementar login/logout
-* [ ] Hash de contraseñas (`bcrypt`)
-* [ ] Manejo de sesión con `Flask-Login`
-* [ ] Proteger todas las rutas internas
+* [x] Implementar login/logout
+* [x] Hash de contraseñas (`werkzeug.security`)
+* [x] Manejo de sesión con `Flask-Login`
+* [x] Proteger todas las rutas internas
 
 **Conceptos:** Authentication, Password Hashing, Session Management
+
+**Estado:** ✅ **COMPLETADA** (Diciembre 2025)
 
 ---
 
@@ -63,23 +64,21 @@
 
 **Objetivo:** controlar qué puede hacer cada usuario.
 
-Roles iniciales:
+Roles implementados:
 
-* `OWNER`
+* `DUEÑA` (Florencia López) - Acceso completo: clínico + finanzas
+* `ODONTOLOGA` - Solo funciones clínicas (sin finanzas)
+* `ADMIN` - Panel técnico (logs, BD, backups) - sin datos clínicos
 
-* `ODONTOLOGA`
-
-* `TECH_ADMIN`
-
-* [ ] Definir roles de forma centralizada
-
-* [ ] Crear decoradores de autorización (`@require_role`)
-
-* [ ] Restringir acceso a datos clínicos según rol
-
-* [ ] Asegurar que `TECH_ADMIN` no vea pacientes ni operaciones
+* [x] Definir roles de forma centralizada
+* [x] Crear métodos de autorización en modelo Usuario
+* [x] Restringir acceso a datos clínicos según rol
+* [x] Asegurar que `ADMIN` no vea pacientes ni operaciones
+* [x] Implementar vista de finanzas (solo para DUEÑA)
 
 **Conceptos:** Authorization, RBAC, Least Privilege
+
+**Estado:** ✅ **COMPLETADA** (Diciembre 2025)
 
 ---
 
@@ -117,9 +116,9 @@ Roles iniciales:
 
 **Objetivo:** mantener consistencia del sistema sin depender del uso manual.
 
-* [ ] Integrar APScheduler
-* [ ] Mover actualización de turnos vencidos a tarea programada
-* [ ] Configurar frecuencia segura (ej. cada 5–10 min)
+* [x] Integrar APScheduler
+* [x] Mover actualización de turnos vencidos a tarea programada (cada 5 min)
+* [x] Configurar frecuencia segura (5 min) y cleanup de conversaciones
 
 **Conceptos:** Background Jobs, Scheduled Tasks
 
@@ -175,11 +174,11 @@ Herramienta:
 
 ```text
 [x] Fase 0 – Preparación ✅
-[ ] Fase 1 – Autenticación
-[ ] Fase 2 – Autorización
+[x] Fase 1 – Autenticación
+[x] Fase 2 – Autorización
 [ ] Fase 3 – Validaciones
 [ ] Fase 4 – Logging
-[ ] Fase 5 – Scheduler
+[x] Fase 5 – Scheduler
 [ ] Fase 6 – Tests
 [ ] Fase 7 – Packaging
 [ ] Fase 8 – Updates

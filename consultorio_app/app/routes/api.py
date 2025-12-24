@@ -4,6 +4,7 @@ Todos los endpoints retornan JSON para integración con herramientas externas.
 """
 from datetime import datetime, date
 from flask import jsonify, request
+from flask_login import login_required
 from sqlalchemy.orm import joinedload
 from app.database.session import DatabaseSession
 from app.models import Paciente, Turno, Prestacion, Estado, CambioEstado
@@ -51,6 +52,7 @@ def _actualizar_no_atendidos(session):
 # ===================== PACIENTES API =====================
 
 @main_bp.route('/api/pacientes')
+@login_required
 def api_listar_pacientes():
     """Get all patients
     ---
@@ -89,6 +91,7 @@ def api_listar_pacientes():
 
 
 @main_bp.route('/api/pacientes/<int:id>')
+@login_required
 def api_ver_paciente(id: int):
     """Get patient details
     ---
@@ -132,6 +135,7 @@ def api_ver_paciente(id: int):
 # ===================== TURNOS API =====================
 
 @main_bp.route('/api/turnos')
+@login_required
 def api_listar_turnos():
     """Get all appointments
     ---
@@ -199,6 +203,7 @@ def api_listar_turnos():
 
 
 @main_bp.route('/api/turnos/<int:id>')
+@login_required
 def api_ver_turno(id: int):
     """Get appointment details
     ---
@@ -252,6 +257,7 @@ def api_ver_turno(id: int):
 # ===================== PRESTACIONES API =====================
 
 @main_bp.route('/api/prestaciones')
+@login_required
 def api_listar_prestaciones():
     """Get all prestaciones
     ---
@@ -290,6 +296,7 @@ def api_listar_prestaciones():
 
 
 @main_bp.route('/api/prestaciones/<int:id>')
+@login_required
 def api_ver_prestacion(id: int):
     """Get prestacion details
     ---
@@ -326,6 +333,7 @@ def api_ver_prestacion(id: int):
 # ===================== ESTADOS API =====================
 
 @main_bp.route('/api/estados')
+@login_required
 def api_listar_estados():
     """Get available appointment statuses
     ---
@@ -340,6 +348,7 @@ def api_listar_estados():
 
 
 @main_bp.route('/api/turnos/sync/actualizar-vencidos', methods=['POST'])
+@login_required
 def api_actualizar_turnos_vencidos():
     """Fuerza la actualización de turnos vencidos a NoAtendido
     ---
@@ -359,7 +368,24 @@ def api_actualizar_turnos_vencidos():
 
 
 @main_bp.route('/api/pacientes/<int:paciente_id>/practicas')
+@login_required
 def api_listar_practicas_paciente(paciente_id: int):
+  """Listar prácticas disponibles para un paciente según su obra social
+  ---
+  tags:
+    - Practicas
+  parameters:
+    - name: paciente_id
+      in: path
+      type: integer
+      required: true
+      description: ID del paciente
+  responses:
+    200:
+      description: Lista de prácticas recomendadas para la obra social del paciente
+    404:
+      description: Paciente no encontrado
+  """
   try:
     paciente = BuscarPacientesService.obtener_por_id(paciente_id)
   except PacienteNoEncontradoError:

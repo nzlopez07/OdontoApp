@@ -6,6 +6,11 @@ Ejecuta el servidor web Flask para la aplicación.
 
 import os
 import sys
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
+
 from app import create_app
 from app.database import db
 from app.models import *  # Importar todos los modelos para que SQLAlchemy los reconozca
@@ -53,6 +58,36 @@ def run_migrations_sqlite():
     if 'operaciones' in table_names and 'prestaciones' not in table_names:
         print("[TOOLS] Migrando tabla operaciones -> prestaciones...")
         db.session.execute(text("ALTER TABLE operaciones RENAME TO prestaciones"))
+        db.session.commit()
+
+    # 1b) Crear tabla conversations si no existe (para WhatsApp conversation store)
+    if 'conversations' not in table_names:
+        print("[TOOLS] Creando tabla conversations...")
+        db.session.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_user_id STRING NOT NULL UNIQUE,
+                paso_actual STRING NOT NULL,
+                paciente_id INTEGER,
+                dni_propuesto STRING,
+                nombre_tmp STRING,
+                apellido_tmp STRING,
+                telefono_tmp STRING,
+                fecha_candidate DATE,
+                hora_candidate TIME,
+                duracion_candidate INTEGER,
+                detalle STRING,
+                expira_en DATETIME,
+                ultima_interaccion_ts DATETIME,
+                intentos_actuales INTEGER DEFAULT 0,
+                confirmed BOOLEAN DEFAULT 0,
+                created_at DATETIME,
+                updated_at DATETIME,
+                FOREIGN KEY(paciente_id) REFERENCES pacientes(id)
+            )
+            """
+        ))
         db.session.commit()
 
     # 2) Update Turnos: operacion_id -> prestacion_id
@@ -296,6 +331,11 @@ def main():
     print(f"[SERVER] Iniciando servidor en http://{host}:{port}")
     print("[HELP] Para ver ayuda: python help.py")
     print("[QUICK] Para verificacion rapida: python quick_start.py")
+    
+    # Registrar tareas periódicas (cleanup, etc) solo en el proceso servidor (evita duplicado en reloader)
+    from app.scheduler import register_background_tasks
+    if not use_reloader or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        register_background_tasks(app)
     
     app.run(host=host, port=port, debug=debug, use_reloader=use_reloader)
 

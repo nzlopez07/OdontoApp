@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Financiero{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-chart-line"></i> Dashboard Financiero</h1>
+            <p class="text-muted">{{ titulo_periodo }}</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter"></i> Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('finanzas.dashboard') }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="periodo" class="form-label">Período</label>
+                        <select name="periodo" id="periodo" class="form-select" onchange="toggleFechasPersonalizadas()">
+                            <option value="semana" {% if periodo == 'semana' %}selected{% endif %}>Última Semana</option>
+                            <option value="mes" {% if periodo == 'mes' %}selected{% endif %}>Este Mes</option>
+                            <option value="anio" {% if periodo == 'anio' %}selected{% endif %}>Este Año</option>
+                            <option value="personalizado" {% if periodo == 'personalizado' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="obra_social" class="form-label">Obra Social</label>
+                        <select name="obra_social" id="obra_social" class="form-select">
+                            {% for os_nombre in obras_sociales_opciones %}
+                            <option value="{{ os_nombre }}" {% if obra_social == os_nombre %}selected{% endif %}>{{ os_nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Seleccione "Todo" para ver el desglose completo</small>
+                    </div>
+                    
+                    <div class="col-md-3" id="div_fecha_desde" style="display: none;">
+                        <label for="fecha_desde" class="form-label">Desde</label>
+                        <input type="date" name="fecha_desde" id="fecha_desde" class="form-control" 
+                               value="{{ fecha_desde.isoformat() if fecha_desde }}">
+                    </div>
+                    
+                    <div class="col-md-3" id="div_fecha_hasta" style="display: none;">
+                        <label for="fecha_hasta" class="form-label">Hasta</label>
+                        <input type="date" name="fecha_hasta" id="fecha_hasta" class="form-control" 
+                               value="{{ fecha_hasta.isoformat() if fecha_hasta }}">
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="paciente_id" class="form-label">Paciente (opcional)</label>
+                        <select name="paciente_id" id="paciente_id" class="form-select">
+                            <option value="">Todos los pacientes</option>
+                            {% for paciente in pacientes %}
+                            <option value="{{ paciente.id }}" {% if paciente_id == paciente.id %}selected{% endif %}>
+                                {{ paciente.apellido }}, {{ paciente.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Aplicar Filtros
+                        </button>
+                        <a href="{{ url_for('finanzas.dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-redo"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tarjetas de resumen -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        <i class="fas fa-arrow-up"></i> Ingresos
+                    </h5>
+                    <h2 class="mb-0">${{ "{:,.2f}".format(resumen.ingresos) }}</h2>
+                    <small class="text-muted">Total de cobros</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">
+                        <i class="fas fa-arrow-down"></i> Egresos
+                    </h5>
+                    <h2 class="mb-0">${{ "{:,.2f}".format(resumen.egresos) }}</h2>
+                    <small class="text-muted">Total de gastos</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card {% if resumen.balance >= 0 %}border-primary{% else %}border-warning{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title {% if resumen.balance >= 0 %}text-primary{% else %}text-warning{% endif %}">
+                        <i class="fas fa-balance-scale"></i> Balance
+                    </h5>
+                    <h2 class="mb-0">${{ "{:,.2f}".format(resumen.balance) }}</h2>
+                    <small class="text-muted">Ingresos - Egresos</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Ingresos por Práctica</h5>
+                        <span class="badge bg-secondary">{{ obra_social }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if ingresos_por_practica %}
+                    <canvas id="chartIngresosTipo"></canvas>
+                    {% else %}
+                    <p class="text-muted text-center">No hay datos de ingresos para {{ obra_social }} en este período</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Egresos por Categoría</h5>
+                </div>
+                <div class="card-body">
+                    {% if egresos_por_categoria %}
+                    <canvas id="chartEgresosCategoria"></canvas>
+                    {% else %}
+                    <p class="text-muted text-center">No hay datos de egresos en este período</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tablas de desglose -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-table"></i> Desglose de Ingresos por Práctica</h5>
+                        <span class="badge bg-secondary">{{ obra_social }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if ingresos_por_practica %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Práctica</th>
+                                <th class="text-end">Cantidad</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ingresos_por_practica %}
+                            <tr>
+                                <td>{{ item.codigo }} - {{ item.descripcion }}</td>
+                                <td class="text-end">{{ item.cantidad }}</td>
+                                <td class="text-end">${{ "{:,.2f}".format(item.total) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No hay datos para {{ obra_social }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> Desglose de Egresos</h5>
+                </div>
+                <div class="card-body">
+                    {% if egresos_por_categoria %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th class="text-end">Cantidad</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in egresos_por_categoria %}
+                            <tr>
+                                <td>{{ item.categoria }}</td>
+                                <td class="text-end">{{ item.cantidad }}</td>
+                                <td class="text-end">${{ "{:,.2f}".format(item.total) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No hay datos</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enlaces a otras secciones -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <a href="{{ url_for('finanzas.gastos') }}" class="btn btn-primary">
+                <i class="fas fa-money-bill-wave"></i> Gestionar Gastos
+            </a>
+            <a href="{{ url_for('finanzas.reportes') }}" class="btn btn-info text-white">
+                <i class="fas fa-file-alt"></i> Ver Reportes Anuales
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Mostrar/ocultar fechas personalizadas
+    function toggleFechasPersonalizadas() {
+        const periodo = document.getElementById('periodo').value;
+        const divDesde = document.getElementById('div_fecha_desde');
+        const divHasta = document.getElementById('div_fecha_hasta');
+        
+        if (periodo === 'personalizado') {
+            divDesde.style.display = 'block';
+            divHasta.style.display = 'block';
+        } else {
+            divDesde.style.display = 'none';
+            divHasta.style.display = 'none';
+        }
+    }
+    
+    // Llamar al cargar la página
+    toggleFechasPersonalizadas();
+    
+    // Gráfico de ingresos por obra social
+    {% if ingresos_por_practica %}
+    const ctxIngresos = document.getElementById('chartIngresosTipo').getContext('2d');
+    new Chart(ctxIngresos, {
+        type: 'pie',
+        data: {
+            labels: [{% for item in ingresos_por_practica %}'{{ item.codigo }} - {{ item.descripcion }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in ingresos_por_practica %}{{ item.total }},{% endfor %}],
+                backgroundColor: [
+                    '#198754',
+                    '#0d6efd',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6f42c1',
+                    '#20c997'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+    
+    // Gráfico de egresos por categoría
+    {% if egresos_por_categoria %}
+    const ctxEgresos = document.getElementById('chartEgresosCategoria').getContext('2d');
+    new Chart(ctxEgresos, {
+        type: 'pie',
+        data: {
+            labels: [{% for item in egresos_por_categoria %}'{{ item.categoria }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in egresos_por_categoria %}{{ item.total }},{% endfor %}],
+                backgroundColor: [
+                    '#dc3545',
+                    '#fd7e14',
+                    '#ffc107',
+                    '#20c997',
+                    '#0dcaf0',
+                    '#6610f2'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

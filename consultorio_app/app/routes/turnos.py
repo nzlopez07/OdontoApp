@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required
 from app.models import Paciente, Estado, Turno, CambioEstado
 from app.services.turno import (
     AgendarTurnoService,
@@ -7,6 +8,7 @@ from app.services.turno import (
     ObtenerAgendaService,
     ListarTurnosService,
     EliminarTurnoService,
+    EditarTurnoService,
 )
 from app.services.paciente import BuscarPacientesService
 from app.services.common import (
@@ -16,6 +18,7 @@ from app.services.common import (
     TurnoSolapamientoError,
     TurnoFechaInvalidaError,
     PacienteNoEncontradoError,
+    EstadoFinalError,
 )
 from . import main_bp
 
@@ -24,6 +27,7 @@ ESTADOS_VALIDOS = ['Pendiente', 'Confirmado', 'Atendido', 'NoAtendido', 'Cancela
 
 
 @main_bp.route('/turnos')
+@login_required
 def listar_turnos():
     """Muestra la agenda de turnos en vista semanal.
     
@@ -52,6 +56,7 @@ def listar_turnos():
 
 
 @main_bp.route('/pacientes/<int:paciente_id>/turnos')
+@login_required
 def listar_turnos_paciente(paciente_id: int):
     try:
         paciente = BuscarPacientesService.obtener_por_id(paciente_id)
@@ -77,6 +82,7 @@ def listar_turnos_paciente(paciente_id: int):
 
 
 @main_bp.route('/turnos/nuevo', methods=['GET', 'POST'])
+@login_required
 def nuevo_turno():
     """Crear un nuevo turno.
     
@@ -164,6 +170,7 @@ def nuevo_turno():
 
 
 @main_bp.route('/turnos/<int:turno_id>')
+@login_required
 def ver_turno(turno_id: int):
     """Ver detalles de un turno específico."""
     turno = Turno.query.get(turno_id)
@@ -179,6 +186,9 @@ def ver_turno(turno_id: int):
     estado_actual = turno.estado or 'Pendiente'
     estados_permitidos = CambiarEstadoTurnoService.TRANSICIONES_VALIDAS.get(estado_actual, [])
     
+    # Filtrar NoAtendido: solo se asigna automáticamente por el sistema, no manualmente por UI
+    estados_permitidos = [e for e in estados_permitidos if e != 'NoAtendido']
+    
     return render_template(
         'turnos/ver.html',
         turno=turno,
@@ -188,6 +198,7 @@ def ver_turno(turno_id: int):
 
 
 @main_bp.route('/turnos/<int:turno_id>/estado', methods=['POST'])
+@login_required
 def cambiar_estado_turno(turno_id: int):
     """Cambiar el estado de un turno con reglas de negocio básicas.
     
@@ -238,6 +249,7 @@ def cambiar_estado_turno(turno_id: int):
 
 
 @main_bp.route('/turnos/<int:turno_id>/eliminar', methods=['POST'])
+@login_required
 def eliminar_turno(turno_id: int):
     """Eliminar un turno. Solo se pueden eliminar turnos Pendientes.
     
@@ -269,3 +281,31 @@ def eliminar_turno(turno_id: int):
         flash(f'Error inesperado: {str(e)}', 'error')
     
     return redirect(url_for('main.listar_turnos'))
+
+
+@main_bp.route('/turnos/<int:turno_id>/reagendar', methods=['POST'])
+@login_required
+def reagendar_turno(turno_id: int):
+    """Reagendar un turno (cambiar fecha/hora).
+    Solo se pueden reagendar turnos en estados no-finales (Pendiente, Confirmado).
+    """
+    try:
+        nueva_fecha = datetime.strptime(request.form['fecha'], '%Y-%m-%d').date()
+        nueva_hora = datetime.strptime(request.form['hora'], '%H:%M').time()
+        
+        turno = EditarTurnoService.execute(
+            turno_id=turno_id,
+            fecha=nueva_fecha,
+            hora=nueva_hora,
+        )
+        flash('Turno reagendado exitosamente', 'success')
+    except EstadoFinalError as e:
+        flash(str(e), 'error')
+    except (TurnoSolapamientoError, TurnoFechaInvalidaError, TurnoNoEncontradoError) as e:
+        flash(str(e), 'error')
+    except ValueError as e:
+        flash(f'Datos inválidos: {str(e)}', 'error')
+    except Exception as e:
+        flash(f'Error inesperado al reagendar: {str(e)}', 'error')
+    
+    return redirect(url_for('main.ver_turno', turno_id=turno_id))
