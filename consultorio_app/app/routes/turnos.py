@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from app.models import Paciente, Estado, Turno, CambioEstado
+from app.forms import TurnoForm
 from app.services.turno import (
     AgendarTurnoService,
     CambiarEstadoTurnoService,
@@ -84,89 +85,45 @@ def listar_turnos_paciente(paciente_id: int):
 @main_bp.route('/turnos/nuevo', methods=['GET', 'POST'])
 @login_required
 def nuevo_turno():
-    """Crear un nuevo turno.
+    """Crear un nuevo turno con validación WTF."""
+    form = TurnoForm()
     
-    ---
-    tags:
-      - Turnos
-    parameters:
-      - name: paciente_id
-        in: form
-        type: integer
-        required: true
-        description: ID del paciente
-      - name: fecha
-        in: form
-        type: string
-        format: date
-        required: true
-        description: Fecha del turno (YYYY-MM-DD)
-      - name: hora
-        in: form
-        type: string
-        required: true
-        description: Hora del turno (HH:MM)
-      - name: detalle
-        in: form
-        type: string
-        description: Detalles del turno
-      - name: operacion_id
-        in: form
-        type: integer
-        description: ID de la operación
-    responses:
-      200:
-        description: Formulario para crear turno (GET) o turno creado (POST)
-      302:
-        description: Redirección después de crear turno exitosamente
-    """
-    if request.method == 'POST':
+    # Poblar select fields dinámicamente
+    form.paciente_id.choices = [
+        (0, '--- Seleccionar ---'),
+        *[(p.id, f'{p.nombre} {p.apellido} (DNI: {p.dni})') for p in Paciente.query.order_by(Paciente.apellido).all()]
+    ]
+    form.estado.choices = [
+        ('Confirmado', 'Confirmado'),
+        ('Pendiente', 'Pendiente'),
+    ]
+    
+    # Pre-cargar paciente si viene en la URL
+    paciente_id_url = request.args.get('paciente_id', type=int)
+    if paciente_id_url and request.method == 'GET':
+        form.paciente_id.data = paciente_id_url
+    
+    if form.validate_on_submit():
         try:
-            paciente_id_raw = request.form.get('paciente_id')
-            if not paciente_id_raw:
-                flash('Debe seleccionar un paciente de la lista.', 'error')
-                raise ValueError('paciente_id faltante')
-
-            duracion_form = request.form.get('duracion')
-            horas_str = request.form.get('duracion_horas')
-            minutos_str = request.form.get('duracion_minutos')
-            duracion_minutos = None
-
-            if horas_str is not None or minutos_str is not None:
-                try:
-                    h = int(horas_str or 0)
-                    m = int(minutos_str or 0)
-                    duracion_minutos = max(0, h * 60 + m)
-                except ValueError:
-                    duracion_minutos = None
-
-            if duracion_minutos is None:
-                duracion_minutos = int(duracion_form) if duracion_form is not None else 30
-
-            # Todos los turnos creados vía web se crean Confirmados (AgendarTurnoService lo hace automáticamente)
+            # Calcular duración total en minutos
+            duracion_total = (form.duracion_horas.data * 60) + form.duracion_minutos.data
+            
+            # Los datos ya están validados por WTF
             turno = AgendarTurnoService.execute(
-                paciente_id=int(paciente_id_raw),
-                fecha=datetime.strptime(request.form['fecha'], '%Y-%m-%d').date(),
-                hora=datetime.strptime(request.form['hora'], '%H:%M').time(),
-                duracion=duracion_minutos,
-                detalle=request.form.get('detalle'),
+                paciente_id=form.paciente_id.data,
+                fecha=form.fecha.data,
+                hora=form.hora.data,
+                duracion=duracion_total,
+                detalle=form.detalle.data,
             )
             flash('Turno creado exitosamente', 'success')
-            paciente_id = request.form.get('paciente_id')
-            if paciente_id:
-                return redirect(url_for('main.ver_paciente', id=paciente_id))
-            return redirect(url_for('main.listar_turnos'))
+            return redirect(url_for('main.ver_paciente', id=form.paciente_id.data))
         except (TurnoSolapamientoError, TurnoFechaInvalidaError, PacienteNoEncontradoError) as e:
-            # Errores de validación de negocio
             flash(str(e), 'error')
-        except ValueError as e:
-            # Errores de parsing de datos
-            flash(f'Datos inválidos: {str(e)}', 'error')
         except Exception as e:
-            flash(f'Error inesperado al crear turno: {str(e)}', 'error')
+            flash(f'Error al crear turno: {str(e)}', 'error')
 
-    pacientes = Paciente.query.all()
-    return render_template('turnos/nuevo.html', pacientes=pacientes)
+    return render_template('turnos/nuevo.html', form=form)
 
 
 @main_bp.route('/turnos/<int:turno_id>')

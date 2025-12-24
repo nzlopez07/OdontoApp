@@ -4,6 +4,39 @@
     {% if paciente %}Editar Paciente{% else %}Nuevo Paciente{% endif %} - Sistema de Gestión
 {% endblock %}
 
+{% macro render_field(field) %}
+    <div class="mb-3">
+        {{ field.label(class="form-label") }}
+        {% if field.widget.input_type == 'hidden' %}
+            {{ field() }}
+        {% elif field.type == 'SelectField' and field.id == 'localidad_id' %}
+            {# Autocomplete solo para localidad #}
+            <div class="autocomplete-wrapper" style="position: relative;">
+                <input type="text" 
+                       class="form-control autocomplete-input" 
+                       id="{{ field.id }}_search"
+                       placeholder="Escribir para buscar..."
+                       autocomplete="off">
+                {{ field(class="d-none", id=field.id) }}
+                <div class="autocomplete-list" style="position: absolute; z-index: 1000; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ced4da; border-top: none; display: none; border-radius: 0 0 0.25rem 0.25rem;"></div>
+            </div>
+        {% elif field.type == 'SelectField' %}
+            {{ field(class="form-select" + (" is-invalid" if field.errors else "")) }}
+        {% elif field.type == 'TextAreaField' %}
+            {{ field(class="form-control" + (" is-invalid" if field.errors else ""), rows=3) }}
+        {% else %}
+            {{ field(class="form-control" + (" is-invalid" if field.errors else "")) }}
+        {% endif %}
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in field.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
@@ -18,153 +51,75 @@
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+                    
                     <div class="row">
-                        <!-- DNI -->
-                        <div class="col-md-4 mb-3">
-                            <label for="dni" class="form-label">DNI *</label>
-                            <input type="text" class="form-control" id="dni" name="dni" 
-                                   value="{{ paciente.dni if paciente else '' }}" required>
+                        <div class="col-md-4">
+                            {{ render_field(form.dni) }}
                         </div>
-
-                        <!-- Nombre -->
-                        <div class="col-md-4 mb-3">
-                            <label for="nombre" class="form-label">Nombre *</label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" 
-                                   value="{{ paciente.nombre if paciente else '' }}" required>
+                        <div class="col-md-4">
+                            {{ render_field(form.nombre) }}
                         </div>
-
-                        <!-- Apellido -->
-                        <div class="col-md-4 mb-3">
-                            <label for="apellido" class="form-label">Apellido *</label>
-                            <input type="text" class="form-control" id="apellido" name="apellido" 
-                                   value="{{ paciente.apellido if paciente else '' }}" required>
+                        <div class="col-md-4">
+                            {{ render_field(form.apellido) }}
                         </div>
                     </div>
 
                     <div class="row">
-                        <!-- Fecha de Nacimiento -->
-                        <div class="col-md-4 mb-3">
-                            <label for="fecha_nac" class="form-label">Fecha de Nacimiento</label>
-                            <input type="date" class="form-control" id="fecha_nac" name="fecha_nac" 
-                                   value="{{ paciente.fecha_nac.strftime('%Y-%m-%d') if paciente and paciente.fecha_nac else '' }}">
+                        <div class="col-md-6">
+                            {{ render_field(form.fecha_nac) }}
                         </div>
-
-                        <!-- Teléfono -->
-                        <div class="col-md-4 mb-3">
-                            <label for="telefono" class="form-label">Teléfono</label>
-                            <input type="tel" class="form-control" id="telefono" name="telefono" 
-                                   value="{{ paciente.telefono if paciente else '' }}">
-                        </div>
-
-                        <!-- Lugar de trabajo -->
-                        <div class="col-md-4 mb-3">
-                            <label for="lugar_trabajo" class="form-label">Lugar de trabajo</label>
-                            <input type="text" class="form-control" id="lugar_trabajo" name="lugar_trabajo" 
-                                   value="{{ paciente.lugar_trabajo if paciente else '' }}">
+                        <div class="col-md-6">
+                            {{ render_field(form.telefono) }}
                         </div>
                     </div>
-
+                    
                     <!-- Sección de Dirección -->
                     <hr class="my-4">
                     <h5 class="mb-3">Direcciones</h5>
                     <div class="row">
-                        <!-- Dirección -->
-                        <div class="col-md-4 mb-3">
-                            <label for="direccion" class="form-label">Dirección</label>
-                            <input type="text" class="form-control" id="direccion" name="direccion" 
-                                   value="{{ paciente.direccion if paciente else '' }}">
+                        <div class="col-md-4">
+                            {{ render_field(form.direccion) }}
                         </div>
-
-                        <!-- Barrio -->
-                        <div class="col-md-4 mb-3">
-                            <label for="barrio" class="form-label">Barrio</label>
-                            <input type="text" class="form-control" id="barrio" name="barrio" 
-                                   value="{{ paciente.barrio if paciente else '' }}">
+                        <div class="col-md-4">
+                            {{ render_field(form.barrio) }}
                         </div>
-
-                        <!-- Localidad con búsqueda y alta libre -->
-                        <div class="col-md-4 mb-3">
-                            <label for="localidad_nombre" class="form-label">Localidad</label>
-                            <input list="localidades_datalist" class="form-control" id="localidad_nombre" name="localidad_nombre"
-                                   placeholder="Escribe o elige..."
-                                   value="{{ paciente.localidad.nombre if paciente and paciente.localidad else '' }}">
-                            <datalist id="localidades_datalist">
-                                {% for localidad in localidades %}
-                                <option value="{{ localidad.nombre }}"></option>
-                                {% endfor %}
-                            </datalist>
-                            <small class="text-muted">Puedes escribir una localidad nueva; se guardará normalizada.</small>
+                        <div class="col-md-4">
+                            {{ render_field(form.localidad_id) }}
                         </div>
                     </div>
-
+                    
                     <!-- Sección de Obra Social -->
                     <hr class="my-4">
                     <h5 class="mb-3">Obra Social</h5>
                     <div class="row">
-                        <!-- Obra Social -->
-                        <div class="col-md-12 mb-3">
-                            <label for="obra_social_id" class="form-label">Obra Social</label>
-                            <select class="form-select" id="obra_social_id" name="obra_social_id">
-                                <option value="">Seleccionar obra social...</option>
-                                {% for obra_social in obras_sociales %}
-                                <option value="{{ obra_social.id }}" 
-                                        {% if paciente and paciente.obra_social_id == obra_social.id %}selected{% endif %}>
-                                    {{ obra_social.nombre }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                        <div class="col-md-12">
+                            {{ render_field(form.obra_social_id) }}
                         </div>
                     </div>
-
-                    <!-- Campos condicionales según obra social -->
-                    {% set obra_social_text = (paciente.obra_social.nombre|lower) if paciente and paciente.obra_social else '' %}
-                    {% set show_ipss = obra_social_text and 'ipss' in obra_social_text %}
-                    {% set show_otros = obra_social_text and ('ipss' not in obra_social_text) and ('particular' not in obra_social_text) %}
-
-                    <div id="campos-ipss" style="display: {{ 'block' if show_ipss else 'none' }};">
+                    
+                    <div id="campos-obra-social" style="display: none;">
                         <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="nro_afiliado" class="form-label">Nro Afiliado</label>
-                                    <input type="text" class="form-control" id="nro_afiliado" name="carnet" 
-                                        value="{{ paciente.nro_afiliado if paciente else '' }}">
+                            <div class="col-md-6">
+                                {{ render_field(form.nro_afiliado) }}
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="titular_ipss" class="form-label">Titular</label>
-                                <input type="text" class="form-control" id="titular_ipss" name="titular" 
-                                       value="{{ paciente.titular if paciente else '' }}">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="parentesco_ipss" class="form-label">Parentesco</label>
-                                <input type="text" class="form-control" id="parentesco_ipss" name="parentesco" 
-                                       value="{{ paciente.parentesco if paciente else '' }}">
+                            <div class="col-md-6">
+                                {{ render_field(form.lugar_trabajo) }}
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Campos para otras obras sociales -->
-                    <div id="campos-otros" style="display: {{ 'block' if show_otros else 'none' }};">
                         <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="carnet" class="form-label">Nro de Afiliado</label>
-                                    <input type="text" class="form-control" id="carnet" name="carnet" 
-                                        value="{{ paciente.nro_afiliado if paciente else '' }}">
+                            <div class="col-md-6">
+                                {{ render_field(form.titular) }}
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="titular" class="form-label">Titular</label>
-                                <input type="text" class="form-control" id="titular" name="titular" 
-                                       value="{{ paciente.titular if paciente else '' }}">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="parentesco" class="form-label">Parentesco</label>
-                                <input type="text" class="form-control" id="parentesco" name="parentesco" 
-                                       value="{{ paciente.parentesco if paciente else '' }}">
+                            <div class="col-md-6">
+                                {{ render_field(form.parentesco) }}
                             </div>
                         </div>
                     </div>
 
                     <!-- Botones -->
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between mt-4">
                         <a href="{{ url_for('main.listar_pacientes') }}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left"></i> Cancelar
                         </a>
@@ -185,56 +140,161 @@
 
 {% block scripts %}
 <script>
-// Función para mostrar/ocultar campos según obra social
-function actualizarCamposObraSocial() {
-    const obraSocialSelect = document.getElementById('obra_social_id');
-    const obraSocialText = (obraSocialSelect.options[obraSocialSelect.selectedIndex]?.text || '').toLowerCase().trim();
-
-    const camposIpss = document.getElementById('campos-ipss');
-    const camposOtros = document.getElementById('campos-otros');
-
-    // Helper para limpiar los campos relacionados a la obra social
-    const clearFields = () => {
-        ['nro_afiliado', 'carnet', 'titular', 'titular_ipss', 'parentesco', 'parentesco_ipss']
-            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    };
-
-    if (obraSocialText.includes('ipss')) {
-        camposIpss.style.display = 'block';
-        camposOtros.style.display = 'none';
-    } else if (obraSocialText.includes('particular')) {
-        // Para PARTICULAR ocultamos y limpiamos los campos relacionados
-        camposIpss.style.display = 'none';
-        camposOtros.style.display = 'none';
-        clearFields();
-    } else if (obraSocialText === '') {
-        camposIpss.style.display = 'none';
-        camposOtros.style.display = 'none';
-    } else {
-        camposIpss.style.display = 'none';
-        camposOtros.style.display = 'block';
-    }
-}
-
-// Inicializar al cargar la página
+// Validación de DNI en tiempo real
 document.addEventListener('DOMContentLoaded', function() {
-    actualizarCamposObraSocial();
-    
-    // Listener para cambios en la selección de obra social
-    document.getElementById('obra_social_id').addEventListener('change', actualizarCamposObraSocial);
-});
-
-// Validación de DNI
-document.getElementById('dni').addEventListener('input', function() {
-    this.value = this.value.replace(/\D/g, ''); // Solo números
-    if (this.value.length > 8) {
-        this.value = this.value.substring(0, 8);
+    const dniField = document.getElementById('dni');
+    if (dniField) {
+        dniField.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 10) {
+                this.value = this.value.substring(0, 10);
+            }
+        });
     }
-});
-
-// Validación de teléfono
-document.getElementById('telefono').addEventListener('input', function() {
-    this.value = this.value.replace(/[^\d\-\+\s\(\)]/g, ''); // Solo números y caracteres de teléfono
+    
+    const telefonoField = document.getElementById('telefono');
+    if (telefonoField) {
+        telefonoField.addEventListener('input', function() {
+            this.value = this.value.replace(/[^\d\-\+\s\(\)]/g, '');
+        });
+    }
+    
+    // Mostrar/ocultar campos de obra social
+    const obraSocialSelect = document.getElementById('obra_social_id');
+    const camposObraSocial = document.getElementById('campos-obra-social');
+    
+    function actualizarCamposObraSocial() {
+        const selectedValue = obraSocialSelect.value;
+        const selectedText = obraSocialSelect.options[obraSocialSelect.selectedIndex]?.text.toLowerCase() || '';
+        
+        if (selectedValue && selectedValue !== '0' && !selectedText.includes('particular')) {
+            camposObraSocial.style.display = 'block';
+        } else {
+            camposObraSocial.style.display = 'none';
+        }
+    }
+    
+    if (obraSocialSelect) {
+        actualizarCamposObraSocial();
+        obraSocialSelect.addEventListener('change', actualizarCamposObraSocial);
+    }
+    
+    // Autocomplete para selects
+    function normalizeText(text) {
+        // Normalizar texto removiendo tildes/acentos para búsqueda insensible
+        return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+    
+    function setupAutocomplete(selectElement) {
+        const wrapper = selectElement.closest('.autocomplete-wrapper');
+        if (!wrapper) return;
+        
+        const input = wrapper.querySelector('.autocomplete-input');
+        const list = wrapper.querySelector('.autocomplete-list');
+        
+        if (!input || !list) return;
+        
+        // Obtener todas las opciones del select
+        const options = Array.from(selectElement.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            normalized: normalizeText(opt.text)
+        }));
+        
+        // Pre-poblar el input si hay un valor seleccionado
+        const selectedOption = options.find(opt => opt.value == selectElement.value);
+        if (selectedOption && selectedOption.value !== '0') {
+            input.value = selectedOption.text;
+        }
+        
+        // Filtrar y mostrar resultados
+        input.addEventListener('input', function() {
+            const searchTerm = normalizeText(this.value.trim());
+            
+            if (searchTerm === '') {
+                list.style.display = 'none';
+                selectElement.value = '0';
+                return;
+            }
+            
+            const filtered = options.filter(opt => 
+                opt.normalized.includes(searchTerm) && opt.value !== '0'
+            );
+            
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="p-2 text-muted">No se encontraron resultados</div>';
+                list.style.display = 'block';
+                selectElement.value = '0';
+                return;
+            }
+            
+            list.innerHTML = filtered.map(opt => 
+                `<div class="autocomplete-item p-2" style="cursor: pointer;" data-value="${opt.value}">${opt.text}</div>`
+            ).join('');
+            
+            list.style.display = 'block';
+            
+            // Agregar hover effect
+            list.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = 'white';
+                });
+                item.addEventListener('click', function() {
+                    const value = this.getAttribute('data-value');
+                    const text = this.textContent;
+                    selectElement.value = value;
+                    input.value = text;
+                    list.style.display = 'none';
+                    
+                    // Trigger change event para obra social
+                    selectElement.dispatchEvent(new Event('change'));
+                });
+            });
+        });
+        
+        // Cerrar lista al hacer click fuera
+        document.addEventListener('click', function(e) {
+            if (!wrapper.contains(e.target)) {
+                list.style.display = 'none';
+            }
+        });
+        
+        // Mostrar todas las opciones al hacer foco
+        input.addEventListener('focus', function() {
+            if (this.value === '') {
+                const allOptions = options.filter(opt => opt.value !== '0');
+                list.innerHTML = allOptions.map(opt => 
+                    `<div class="autocomplete-item p-2" style="cursor: pointer;" data-value="${opt.value}">${opt.text}</div>`
+                ).join('');
+                
+                list.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#f8f9fa';
+                    });
+                    item.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', function() {
+                        const value = this.getAttribute('data-value');
+                        const text = this.textContent;
+                        selectElement.value = value;
+                        input.value = text;
+                        list.style.display = 'none';
+                        selectElement.dispatchEvent(new Event('change'));
+                    });
+                });
+                
+                list.style.display = 'block';
+            }
+        });
+    }
+    
+    // Aplicar autocomplete solo a localidad
+    const localidadSelect = document.getElementById('localidad_id');
+    if (localidadSelect) setupAutocomplete(localidadSelect);
 });
 </script>
 {% endblock %}

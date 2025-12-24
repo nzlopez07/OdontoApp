@@ -127,27 +127,46 @@ class CrearVersionOdontogramaService:
         for cara_base in base.caras:
             cara_nueva = OdontogramaCara(
                 odontograma_id=nueva.id,
-                id_cara=cara_base.id_cara,
-                prestaciones_json=cara_base.prestaciones_json,
-                anomalias_json=cara_base.anomalias_json,
+                diente=cara_base.diente,
+                cara=cara_base.cara,
+                marca_codigo=cara_base.marca_codigo,
+                marca_texto=cara_base.marca_texto,
+                comentario=cara_base.comentario,
             )
             session.add(cara_nueva)
         
-        # Aplicar cambios (simplificado: asumir que cambios_caras contiene la estructura completa)
-        # En la implementación real esto sería más complejo
+        # Aplicar cambios
         if cambios_caras:
             for cambio in cambios_caras:
-                id_cara = cambio.get('id_cara')
-                cara = session.query(OdontogramaCara).filter_by(
+                diente = cambio.get('diente')
+                cara = cambio.get('cara')
+                
+                # Buscar cara existente o crear nueva
+                cara_obj = session.query(OdontogramaCara).filter_by(
                     odontograma_id=nueva.id,
-                    id_cara=id_cara
+                    diente=diente,
+                    cara=cara
                 ).first()
-                if cara:
-                    # Actualizar prestaciones y anomalías
-                    if 'prestaciones_json' in cambio:
-                        cara.prestaciones_json = cambio['prestaciones_json']
-                    if 'anomalias_json' in cambio:
-                        cara.anomalias_json = cambio['anomalias_json']
+                
+                if cara_obj:
+                    # Actualizar cara existente
+                    if 'marca_codigo' in cambio:
+                        cara_obj.marca_codigo = cambio['marca_codigo']
+                    if 'marca_texto' in cambio:
+                        cara_obj.marca_texto = cambio['marca_texto']
+                    if 'comentario' in cambio:
+                        cara_obj.comentario = cambio['comentario']
+                else:
+                    # Crear nueva cara
+                    nueva_cara = OdontogramaCara(
+                        odontograma_id=nueva.id,
+                        diente=diente,
+                        cara=cara,
+                        marca_codigo=cambio.get('marca_codigo'),
+                        marca_texto=cambio.get('marca_texto'),
+                        comentario=cambio.get('comentario'),
+                    )
+                    session.add(nueva_cara)
     
     @staticmethod
     def _aplicar_retencion(session, paciente_id: int) -> None:

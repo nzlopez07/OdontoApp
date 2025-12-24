@@ -68,13 +68,13 @@ class ListarPrestacionesService:
             query = query.filter(Prestacion.monto <= monto_max)
         
         if fecha_desde:
-            query = query.filter(Prestacion.creado_en >= fecha_desde)
+            query = query.filter(Prestacion.fecha >= fecha_desde)
         
         if fecha_hasta:
-            query = query.filter(Prestacion.creado_en <= fecha_hasta)
+            query = query.filter(Prestacion.fecha <= fecha_hasta)
         
-        # Ordenar
-        query = query.order_by(Prestacion.creado_en.desc())
+        # Ordenar por fecha de la prestación (más recientes primero)
+        query = query.order_by(Prestacion.fecha.desc())
         
         # Paginación
         total = query.count()
@@ -141,5 +141,5 @@ class ListarPrestacionesService:
             raise PacienteNoEncontradoError(paciente_id)
         
         return Prestacion.query.filter_by(paciente_id=paciente_id).order_by(
-            Prestacion.creado_en.desc()
+            Prestacion.fecha.desc()
         ).limit(limite).all()

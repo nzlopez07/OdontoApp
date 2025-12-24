@@ -99,4 +99,12 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(finanzas_bp)
     
+    # Registrar tareas periódicas (scheduler)
+    # Registrar tareas periódicas (scheduler) salvo en modo testing
+    if not app.config.get('TESTING') and os.environ.get('DISABLE_SCHEDULER') != '1':
+        from app.scheduler import register_background_tasks
+        register_background_tasks(app)
+    else:
+        app.logger.info("Scheduler deshabilitado en modo testing")
+    
     return app

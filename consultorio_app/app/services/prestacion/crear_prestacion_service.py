@@ -59,9 +59,11 @@ class CrearPrestacionService:
         if not paciente_id:
             raise DatosInvalidosError('paciente_id es requerido')
         
-        descripcion = data.get('descripcion', '').strip()
-        if not descripcion:
+        descripcion = data.get('descripcion')
+        if not descripcion or (isinstance(descripcion, str) and not descripcion.strip()):
             raise DatosInvalidosError('descripcion es requerida y no puede estar vacía')
+        if isinstance(descripcion, str):
+            descripcion = descripcion.strip()
         
         practicas_ids = data.get('practicas', [])
         if not practicas_ids:
@@ -72,7 +74,11 @@ class CrearPrestacionService:
         
         descuento_porcentaje = float(data.get('descuento_porcentaje', 0))
         descuento_fijo = float(data.get('descuento_fijo', 0))
-        observaciones = data.get('observaciones', '').strip()
+        observaciones = data.get('observaciones')
+        if observaciones and isinstance(observaciones, str):
+            observaciones = observaciones.strip() or None
+        else:
+            observaciones = None
         
         # 2. Validar rangos de descuentos
         if descuento_porcentaje < 0 or descuento_porcentaje > 100:

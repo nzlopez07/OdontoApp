@@ -4,7 +4,8 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, current_app
 from flask_login import login_required
-from app.models import Prestacion, ObraSocial, Localidad
+from app.models import Prestacion, ObraSocial, Localidad, Paciente
+from app.forms import PacienteForm
 from app.services.paciente import (
     BuscarPacientesService,
     CrearPacienteService,
@@ -77,84 +78,36 @@ def listar_pacientes():
 @main_bp.route('/pacientes/nuevo', methods=['GET', 'POST'])
 @login_required
 def crear_paciente():
-    """Crear un nuevo paciente.
+    """Crear un nuevo paciente con validación formal WTF."""
+    form = PacienteForm()
     
-    ---
-    tags:
-      - Pacientes
-    parameters:
-      - name: nombre
-        in: form
-        type: string
-        required: true
-      - name: apellido
-        in: form
-        type: string
-        required: true
-      - name: dni
-        in: form
-        type: string
-        required: true
-      - name: fecha_nac
-        in: form
-        type: string
-        format: date
-      - name: telefono
-        in: form
-        type: string
-      - name: direccion
-        in: form
-        type: string
-      - name: obra_social_id
-        in: form
-        type: integer
-      - name: localidad_id
-        in: form
-        type: integer
-      - name: carnet
-        in: form
-        type: string
-      - name: titular
-        in: form
-        type: string
-      - name: parentesco
-        in: form
-        type: string
-      - name: lugar_trabajo
-        in: form
-        type: string
-      - name: barrio
-        in: form
-        type: string
-    responses:
-      200:
-        description: Formulario para crear paciente (GET) o paciente creado (POST)
-      302:
-        description: Redirección después de crear paciente exitosamente
-    """
-    obras_sociales = ObraSocial.query.order_by(ObraSocial.nombre).all()
-    localidades = Localidad.query.order_by(Localidad.nombre).all()
-
-    if request.method == 'POST':
+    # Poblar select fields dinámicamente (DESPUÉS de instanciar)
+    form.localidad_id.choices = [
+        (0, '--- Seleccionar ---'),
+        *[(loc.id, loc.nombre) for loc in Localidad.query.order_by(Localidad.nombre).all()]
+    ]
+    form.obra_social_id.choices = [
+        (0, '--- Seleccionar ---'),
+        *[(os.id, os.nombre) for os in ObraSocial.query.order_by(ObraSocial.nombre).all()]
+    ]
+    
+    if form.validate_on_submit():
         try:
-            fecha_nac = datetime.strptime(request.form['fecha_nac'], '%Y-%m-%d').date() if request.form.get('fecha_nac') else None
-            localidad_nombre = request.form.get('localidad_nombre', '').strip() or None
-
+            # Los datos ya están validados por WTF
             CrearPacienteService.execute(
-              nombre=request.form['nombre'],
-              apellido=request.form['apellido'],
-              dni=request.form['dni'],
-              fecha_nac=fecha_nac,
-              telefono=request.form.get('telefono'),
-              direccion=request.form.get('direccion'),
-              barrio=request.form.get('barrio'),
-              localidad_nombre=localidad_nombre,
-              localidad_id=int(request.form['localidad_id']) if request.form.get('localidad_id') else None,
-              obra_social_id=int(request.form['obra_social_id']) if request.form.get('obra_social_id') else None,
-              nro_afiliado=request.form.get('carnet'),
-              titular=request.form.get('titular'),
-              parentesco=request.form.get('parentesco'),
-              lugar_trabajo=request.form.get('lugar_trabajo'),
+                nombre=form.nombre.data,
+                apellido=form.apellido.data,
+                dni=form.dni.data,
+                fecha_nac=form.fecha_nac.data,
+                telefono=form.telefono.data or None,
+                lugar_trabajo=form.lugar_trabajo.data or None,
+                direccion=form.direccion.data or None,
+                barrio=form.barrio.data or None,
+                localidad_id=form.localidad_id.data if form.localidad_id.data and form.localidad_id.data != 0 else None,
+                obra_social_id=form.obra_social_id.data if form.obra_social_id.data and form.obra_social_id.data != 0 else None,
+                nro_afiliado=form.nro_afiliado.data or None,
+                titular=form.titular.data or None,
+                parentesco=form.parentesco.data or None,
             )
             flash('Paciente creado exitosamente', 'success')
             return redirect(url_for('main.listar_pacientes'))
@@ -165,11 +118,7 @@ def crear_paciente():
         except Exception as e:
             flash(f'Error al crear paciente: {str(e)}', 'error')
 
-    return render_template(
-        'pacientes/formulario.html',
-        obras_sociales=obras_sociales,
-        localidades=localidades,
-    )
+    return render_template('pacientes/formulario.html', form=form)
 
 
 @main_bp.route('/pacientes/<int:id>')
@@ -387,40 +336,67 @@ def crear_version_odontograma(id: int):
         }), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception:
-        return jsonify({"error": "No se pudo crear la nueva versión"}), 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()  # Esto imprimirá el error en la consola
+        return jsonify({"error": f"No se pudo crear la nueva versión: {str(e)}"}), 500
 
 
 @main_bp.route('/pacientes/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_paciente(id: int):
-    """Editar un paciente existente."""
+    """Editar un paciente existente con validación WTF."""
     try:
         paciente = BuscarPacientesService.obtener_por_id(id)
     except PacienteNoEncontradoError:
         return redirect(url_for('main.listar_pacientes'))
 
-    if request.method == 'POST':
+    form = PacienteForm()
+    
+    # Poblar select fields dinámicamente
+    form.localidad_id.choices = [
+        (0, '--- Seleccionar ---'),
+        *[(loc.id, loc.nombre) for loc in Localidad.query.order_by(Localidad.nombre).all()]
+    ]
+    form.obra_social_id.choices = [
+        (0, '--- Seleccionar ---'),
+        *[(os.id, os.nombre) for os in ObraSocial.query.order_by(ObraSocial.nombre).all()]
+    ]
+    
+    # Pre-poblar formulario en GET
+    if request.method == 'GET':
+        form.nombre.data = paciente.nombre
+        form.apellido.data = paciente.apellido
+        form.dni.data = paciente.dni
+        form.fecha_nac.data = paciente.fecha_nac
+        form.telefono.data = paciente.telefono
+        form.lugar_trabajo.data = paciente.lugar_trabajo if hasattr(paciente, 'lugar_trabajo') else None
+        form.direccion.data = paciente.direccion
+        form.barrio.data = paciente.barrio if hasattr(paciente, 'barrio') else None
+        form.localidad_id.data = paciente.localidad_id if paciente.localidad_id else 0
+        form.obra_social_id.data = paciente.obra_social_id if paciente.obra_social_id else 0
+        form.nro_afiliado.data = paciente.nro_afiliado
+        form.titular.data = paciente.titular if hasattr(paciente, 'titular') else None
+        form.parentesco.data = paciente.parentesco if hasattr(paciente, 'parentesco') else None
+    
+    if form.validate_on_submit():
         try:
-            fecha_nac = datetime.strptime(request.form['fecha_nac'], '%Y-%m-%d').date() if request.form.get('fecha_nac') else None
-            localidad_nombre = request.form.get('localidad_nombre', '').strip() or None
-
+            # Los datos ya están validados por WTF
             EditarPacienteService.execute(
                 paciente_id=paciente.id,
-                nombre=request.form['nombre'],
-                apellido=request.form['apellido'],
-                dni=request.form['dni'],
-                fecha_nac=fecha_nac,
-                telefono=request.form.get('telefono'),
-                direccion=request.form.get('direccion'),
-                barrio=request.form.get('barrio'),
-                localidad_nombre=localidad_nombre,
-                localidad_id=int(request.form['localidad_id']) if request.form.get('localidad_id') else None,
-                obra_social_id=int(request.form['obra_social_id']) if request.form.get('obra_social_id') else None,
-                nro_afiliado=request.form.get('carnet'),
-                titular=request.form.get('titular'),
-                parentesco=request.form.get('parentesco'),
-                lugar_trabajo=request.form.get('lugar_trabajo'),
+                nombre=form.nombre.data,
+                apellido=form.apellido.data,
+                dni=form.dni.data,
+                fecha_nac=form.fecha_nac.data,
+                telefono=form.telefono.data or None,
+                lugar_trabajo=form.lugar_trabajo.data or None,
+                direccion=form.direccion.data or None,
+                barrio=form.barrio.data or None,
+                localidad_id=form.localidad_id.data if form.localidad_id.data and form.localidad_id.data != 0 else None,
+                obra_social_id=form.obra_social_id.data if form.obra_social_id.data and form.obra_social_id.data != 0 else None,
+                nro_afiliado=form.nro_afiliado.data or None,
+                titular=form.titular.data or None,
+                parentesco=form.parentesco.data or None,
             )
             flash('Paciente actualizado exitosamente', 'success')
             return redirect(url_for('main.ver_paciente', id=paciente.id))
@@ -431,12 +407,4 @@ def editar_paciente(id: int):
         except Exception as e:
             flash(f'Error al actualizar paciente: {str(e)}', 'error')
 
-    obras_sociales = ObraSocial.query.order_by(ObraSocial.nombre).all()
-    localidades = Localidad.query.order_by(Localidad.nombre).all()
-
-    return render_template(
-        'pacientes/formulario.html',
-        paciente=paciente,
-        obras_sociales=obras_sociales,
-        localidades=localidades,
-    )
+    return render_template('pacientes/formulario.html', form=form, paciente=paciente)

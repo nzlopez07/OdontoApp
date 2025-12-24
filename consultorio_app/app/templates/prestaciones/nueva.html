@@ -6,110 +6,142 @@
 <h3 class="mb-3">Nueva Prestación</h3>
 <div class="card">
     <div class="card-body">
-        <form method="post">
-            <div class="row g-3">
+        <form method="post" id="prestacionForm" novalidate>
+            {{ form.hidden_tag() }}
+            {{ form.monto() }}
+            
+            <!-- Selección de paciente y descripción -->
+            <div class="row g-3 mb-3">
                 <div class="col-md-6">
-                    <label class="form-label">Paciente</label>
-                    <select name="paciente_id" class="form-select" id="paciente_select" onchange="cargarPracticas()" required>
-                        <option value="" disabled {% if not paciente_id %}selected{% endif %}>Seleccione...</option>
-                        {% for paciente in pacientes %}
-                        <option value="{{ paciente.id }}" {% if paciente_id and paciente.id == paciente_id|int %}selected{% endif %}>{{ paciente.apellido }}, {{ paciente.nombre }} (DNI: {{ paciente.dni }})</option>
-                        {% endfor %}
-                    </select>
+                    {{ form.paciente_id.label(class="form-label") }}
+                    <div class="autocomplete-wrapper" style="position: relative;">
+                        <input type="text" 
+                               class="form-control autocomplete-input" 
+                               id="paciente_id_search"
+                               placeholder="Escribir nombre del paciente..."
+                               autocomplete="off">
+                        {{ form.paciente_id(class="d-none", id="paciente_id") }}
+                        <div class="autocomplete-list" style="position: absolute; z-index: 1000; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ced4da; border-top: none; display: none; border-radius: 0 0 0.25rem 0.25rem;"></div>
+                    </div>
+                    {% if form.paciente_id.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.paciente_id.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Descripción</label>
-                    <input type="text" name="descripcion" class="form-control" required>
+                    {{ form.descripcion.label(class="form-label") }}
+                    {{ form.descripcion(class="form-control" + (" is-invalid" if form.descripcion.errors else "")) }}
+                    {% if form.descripcion.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.descripcion.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
-            <div class="row g-3 mt-2">
-                <div class="col-md-8">
+            <!-- Selector de prácticas -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-10">
                     <label class="form-label">Agregar Práctica</label>
-                    <select class="form-select" id="practica_select">
-                        <option value="">Seleccionar práctica...</option>
+                    <select id="practica_select" class="form-select" disabled>
+                        <option value="">Primero seleccione un paciente...</option>
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="button" class="btn btn-success w-100" onclick="agregarPractica()">
-                        <i class="bi bi-plus-circle"></i> Agregar
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" onclick="agregarPractica()" id="btnAgregarPractica" disabled>
+                        <i class="bi bi-plus-lg"></i> Agregar
                     </button>
                 </div>
             </div>
 
-            <div class="mt-3">
-                <label class="form-label">Prácticas Seleccionadas</label>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Código</th>
-                                <th>Descripción</th>
-                                <th>Monto Unitario</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="practicas_seleccionadas">
-                            <tr id="empty_row">
-                                <td colspan="4" class="text-center text-muted">No hay prácticas seleccionadas</td>
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr class="table-light">
-                                <th colspan="2" class="text-end">Subtotal:</th>
-                                <th><span id="subtotal">$0.00</span></th>
-                                <th></th>
-                            </tr>
-                            <tr class="table-light">
-                                <th colspan="2" class="text-end">Descuento %:</th>
-                                <th><span id="descuento_porcentaje_monto">$0.00</span></th>
-                                <th></th>
-                            </tr>
-                            <tr class="table-light">
-                                <th colspan="2" class="text-end">Descuento fijo:</th>
-                                <th><span id="descuento_fijo_monto">$0.00</span></th>
-                                <th></th>
-                            </tr>
-                            <tr class="table-light">
-                                <th colspan="2" class="text-end">Total:</th>
-                                <th><span id="monto_total">$0.00</span></th>
-                                <th></th>
-                            </tr>
-                        </tfoot>
-                    </table>
+            <!-- Tabla estilo factura -->
+            <div class="card border">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="15%">Código</th>
+                                    <th width="50%">Descripción</th>
+                                    <th width="20%" class="text-end">Monto</th>
+                                    <th width="15%" class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="practicas_seleccionadas">
+                                <tr id="empty_row">
+                                    <td colspan="4" class="text-center text-muted py-4">No hay prácticas seleccionadas</td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="table-light border-top">
+                                <tr>
+                                    <td colspan="2" class="text-end"><strong>Subtotal:</strong></td>
+                                    <td class="text-end"><strong><span id="subtotal">$0.00</span></strong></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end">Descuento %:</td>
+                                    <td class="text-end"><span id="descuento_porcentaje_monto">$0.00</span></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="text-end">Descuento fijo:</td>
+                                    <td class="text-end"><span id="descuento_fijo_monto">$0.00</span></td>
+                                    <td></td>
+                                </tr>
+                                <tr class="table-active">
+                                    <td colspan="2" class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end"><strong class="text-primary fs-5"><span id="monto_total">$0.00</span></strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <div class="row g-3 mt-2">
+            <!-- Descuentos y monto final -->
+            <div class="row g-3 mt-3">
                 <div class="col-md-6">
-                    <label class="form-label">Descuento porcentual</label>
+                    {{ form.descuento_porcentaje.label(class="form-label") }}
                     <div class="input-group">
                         <span class="input-group-text">%</span>
-                        <input type="number" step="0.01" min="0" name="descuento_porcentaje" id="descuento_porcentaje" class="form-control" placeholder="0" oninput="actualizarMontos()">
+                        {{ form.descuento_porcentaje(class="form-control" + (" is-invalid" if form.descuento_porcentaje.errors else ""), id="descuento_porcentaje", value="0", oninput="actualizarMontos()", inputmode="decimal", pattern="[0-9]*(\.[0-9]{1,2})?") }}
                     </div>
+                    {% if form.descuento_porcentaje.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.descuento_porcentaje.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Descuento fijo</label>
+                    {{ form.descuento_fijo.label(class="form-label") }}
                     <div class="input-group">
                         <span class="input-group-text">$</span>
-                        <input type="number" step="0.01" min="0" name="descuento_fijo" id="descuento_fijo" class="form-control" placeholder="0" oninput="actualizarMontos()">
+                        {{ form.descuento_fijo(class="form-control" + (" is-invalid" if form.descuento_fijo.errors else ""), id="descuento_fijo", value="0", oninput="actualizarMontos()", inputmode="decimal", pattern="[0-9]*(\.[0-9]{1,2})?") }}
                     </div>
+                    {% if form.descuento_fijo.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.descuento_fijo.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="row g-3 mt-2">
                 <div class="col-12">
-                    <label class="form-label">Observaciones</label>
-                    <textarea name="observaciones" class="form-control" rows="3"></textarea>
+                    {{ form.observaciones.label(class="form-label") }}
+                    {{ form.observaciones(class="form-control" + (" is-invalid" if form.observaciones.errors else ""), rows=3) }}
+                    {% if form.observaciones.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.observaciones.errors %}{{ error }}{% endfor %}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-3">
-                {% if paciente_id %}
-                <a href="{{ url_for('main.ver_paciente', id=paciente_id) }}" class="btn btn-outline-secondary">Cancelar</a>
-                {% else %}
                 <a href="{{ url_for('main.listar_prestaciones') }}" class="btn btn-outline-secondary">Cancelar</a>
-                {% endif %}
                 <button type="submit" class="btn btn-primary">Guardar</button>
             </div>
         </form>
@@ -120,17 +152,145 @@
 let practicasDisponibles = [];
 let practicasSeleccionadas = [];
 
+function normalizeText(text) {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function setupAutocomplete(selectElement) {
+    const wrapper = selectElement.closest('.autocomplete-wrapper');
+    if (!wrapper) return;
+    
+    const input = wrapper.querySelector('.autocomplete-input');
+    const list = wrapper.querySelector('.autocomplete-list');
+    
+    if (!input || !list) return;
+    
+    const options = Array.from(selectElement.options).map(opt => ({
+        value: opt.value,
+        text: opt.text,
+        normalized: normalizeText(opt.text)
+    }));
+    
+    const selectedOption = options.find(opt => opt.value == selectElement.value);
+    if (selectedOption && selectedOption.value !== '0') {
+        input.value = selectedOption.text;
+    }
+    
+    input.addEventListener('input', function() {
+        const searchTerm = normalizeText(this.value.trim());
+        
+        if (searchTerm === '') {
+            list.style.display = 'none';
+            selectElement.value = '0';
+            practicasDisponibles = [];
+            practicasSeleccionadas = [];
+            actualizarTablaPracticas();
+            return;
+        }
+        
+        const filtered = options.filter(opt => 
+            opt.normalized.includes(searchTerm) && opt.value !== '0'
+        );
+        
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="p-2 text-muted">No se encontraron pacientes</div>';
+            list.style.display = 'block';
+            selectElement.value = '0';
+            return;
+        }
+        
+        list.innerHTML = filtered.map(opt => 
+            `<div class="autocomplete-item p-2" style="cursor: pointer;" data-value="${opt.value}">${opt.text}</div>`
+        ).join('');
+        
+        list.style.display = 'block';
+        
+        list.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            item.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = 'white';
+            });
+            item.addEventListener('click', function() {
+                const value = this.getAttribute('data-value');
+                const text = this.textContent;
+                selectElement.value = value;
+                input.value = text;
+                list.style.display = 'none';
+                cargarPracticas();
+            });
+        });
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) {
+            list.style.display = 'none';
+        }
+    });
+    
+    input.addEventListener('focus', function() {
+        if (this.value === '') {
+            const allOptions = options.filter(opt => opt.value !== '0');
+            list.innerHTML = allOptions.map(opt => 
+                `<div class="autocomplete-item p-2" style="cursor: pointer;" data-value="${opt.value}">${opt.text}</div>`
+            ).join('');
+            
+            list.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = 'white';
+                });
+                item.addEventListener('click', function() {
+                    const value = this.getAttribute('data-value');
+                    const text = this.textContent;
+                    selectElement.value = value;
+                    input.value = text;
+                    list.style.display = 'none';
+                    cargarPracticas();
+                });
+            });
+            
+            list.style.display = 'block';
+        }
+    });
+}
+
 function cargarPracticas() {
-    const pacienteId = document.getElementById('paciente_select').value;
-    if (!pacienteId) return;
+    const pacienteId = document.getElementById('paciente_id').value;
+    const practicaSelect = document.getElementById('practica_select');
+    const btnAgregar = document.getElementById('btnAgregarPractica');
+    
+    if (!pacienteId || pacienteId === '0') {
+        practicaSelect.disabled = true;
+        btnAgregar.disabled = true;
+        practicaSelect.innerHTML = '<option value="">Primero seleccione un paciente...</option>';
+        practicasSeleccionadas = [];
+        actualizarTablaPracticas();
+        return;
+    }
+    
+    practicaSelect.disabled = true;
+    practicaSelect.innerHTML = '<option value="">Cargando prácticas...</option>';
     
     fetch(`/api/pacientes/${pacienteId}/practicas`)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('Error al cargar prácticas');
+            return r.json();
+        })
         .then(data => {
             practicasDisponibles = data.practicas || [];
             actualizarSelectPracticas();
+            practicaSelect.disabled = false;
+            btnAgregar.disabled = false;
         })
-        .catch(e => console.error('Error cargando prácticas:', e));
+        .catch(e => {
+            console.error('Error cargando prácticas:', e);
+            practicaSelect.innerHTML = '<option value="">Error al cargar prácticas</option>';
+            practicasDisponibles = [];
+        });
 }
 
 function actualizarSelectPracticas() {
@@ -155,7 +315,10 @@ function agregarPractica() {
     const select = document.getElementById('practica_select');
     const option = select.options[select.selectedIndex];
     
-    if (!option || !option.value) return;
+    if (!option || !option.value) {
+        alert('Por favor seleccione una práctica');
+        return;
+    }
     
     const practica = {
         id: parseInt(option.value),
@@ -176,20 +339,12 @@ function eliminarPractica(practicaId) {
     actualizarSelectPracticas();
 }
 
-function obtenerDescuentos() {
-    const porcInput = document.getElementById('descuento_porcentaje');
-    const fijoInput = document.getElementById('descuento_fijo');
-    const descuentoPorcentaje = Math.max(0, parseFloat(porcInput.value) || 0);
-    const descuentoFijo = Math.max(0, parseFloat(fijoInput.value) || 0);
-    return { descuentoPorcentaje, descuentoFijo };
-}
-
 function actualizarTablaPracticas() {
     const tbody = document.getElementById('practicas_seleccionadas');
     tbody.innerHTML = '';
     
     if (practicasSeleccionadas.length === 0) {
-        tbody.innerHTML = '<tr id="empty_row"><td colspan="4" class="text-center text-muted">No hay prácticas seleccionadas</td></tr>';
+        tbody.innerHTML = '<tr id="empty_row"><td colspan="4" class="text-center text-muted py-4">No hay prácticas seleccionadas</td></tr>';
         actualizarMontos(0);
         return;
     }
@@ -200,8 +355,8 @@ function actualizarTablaPracticas() {
         tr.innerHTML = `
             <td><code>${p.codigo}</code></td>
             <td>${p.descripcion}</td>
-            <td>$${p.monto_unitario.toFixed(2)}</td>
-            <td>
+            <td class="text-end">$${p.monto_unitario.toFixed(2)}</td>
+            <td class="text-center">
                 <button type="button" class="btn btn-sm btn-danger" onclick="eliminarPractica(${p.id})">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -217,7 +372,9 @@ function actualizarTablaPracticas() {
 
 function actualizarMontos(subtotalOverride = null) {
     const subtotal = subtotalOverride !== null ? subtotalOverride : practicasSeleccionadas.reduce((acc, p) => acc + p.monto_unitario, 0);
-    const { descuentoPorcentaje, descuentoFijo } = obtenerDescuentos();
+    const descuentoPorcentaje = Math.max(0, parseFloat(document.getElementById('descuento_porcentaje').value) || 0);
+    const descuentoFijo = Math.max(0, parseFloat(document.getElementById('descuento_fijo').value) || 0);
+    
     const descuentoMontoPorcentaje = subtotal * (descuentoPorcentaje / 100);
     const descuentoMontoFijo = descuentoFijo;
     let total = subtotal - descuentoMontoPorcentaje - descuentoMontoFijo;
@@ -227,15 +384,90 @@ function actualizarMontos(subtotalOverride = null) {
     document.getElementById('descuento_porcentaje_monto').textContent = `$${descuentoMontoPorcentaje.toFixed(2)}`;
     document.getElementById('descuento_fijo_monto').textContent = `$${descuentoMontoFijo.toFixed(2)}`;
     document.getElementById('monto_total').textContent = `$${total.toFixed(2)}`;
+    
+    // Actualizar el campo monto del form (HiddenField)
+    document.getElementById('monto').value = total.toFixed(2);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    const pacienteSelect = document.getElementById('paciente_id');
+    setupAutocomplete(pacienteSelect);
     actualizarMontos();
+    
+    // Bloquear caracteres inválidos en descuentos (solo números y punto decimal)
+    const descuentoPorcentaje = document.getElementById('descuento_porcentaje');
+    const descuentoFijo = document.getElementById('descuento_fijo');
+    
+    [descuentoPorcentaje, descuentoFijo].forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            // Permitir: backspace, delete, tab, escape, enter
+            if ([8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
+                // Permitir: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (e.keyCode === 65 && e.ctrlKey === true) ||
+                (e.keyCode === 67 && e.ctrlKey === true) ||
+                (e.keyCode === 86 && e.ctrlKey === true) ||
+                (e.keyCode === 88 && e.ctrlKey === true) ||
+                // Permitir: home, end, left, right
+                (e.keyCode >= 35 && e.keyCode <= 39)) {
+                return;
+            }
+            
+            // Bloquear todo excepto números y punto decimal
+            if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && 
+                (e.keyCode < 96 || e.keyCode > 105) && 
+                e.keyCode !== 190 && e.keyCode !== 110) {
+                e.preventDefault();
+            }
+            
+            // Solo un punto decimal
+            if ((e.keyCode === 190 || e.keyCode === 110) && this.value.indexOf('.') !== -1) {
+                e.preventDefault();
+            }
+        });
+        
+        // Validar en paste
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            // Solo permitir números y un punto
+            if (/^[0-9]*\.?[0-9]*$/.test(pasteData)) {
+                this.value = pasteData;
+                actualizarMontos();
+            }
+        });
+    });
+    
+    // Si hay paciente pre-seleccionado (viene de URL), cargar sus prácticas automáticamente
+    const pacienteIdPreseleccionado = pacienteSelect.value;
+    if (pacienteIdPreseleccionado && pacienteIdPreseleccionado !== '0') {
+        cargarPracticas();
+    }
+    
+    // Restaurar prácticas si hay un error de validación
+    const practicaIdsStr = '{{ practica_ids_str or "" }}';
+    if (practicaIdsStr) {
+        const practicaIds = practicaIdsStr.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+        if (practicaIds.length > 0) {
+            const pacienteId = {{ form.paciente_id.data or 0 }};
+            if (pacienteId > 0) {
+                // Cargar las prácticas del paciente
+                fetch(`/api/pacientes/${pacienteId}/practicas`)
+                    .then(r => r.json())
+                    .then(data => {
+                        practicasDisponibles = data.practicas || [];
+                        // Restaurar prácticas seleccionadas
+                        practicasSeleccionadas = practicasDisponibles.filter(p => practicaIds.includes(p.id));
+                        actualizarTablaPracticas();
+                        actualizarSelectPracticas();
+                        
+                        // Habilitar selector de prácticas
+                        document.getElementById('practica_select').disabled = false;
+                        document.getElementById('btnAgregarPractica').disabled = false;
+                    })
+                    .catch(e => console.error('Error restaurando prácticas:', e));
+            }
+        }
+    }
 });
-{% if paciente_id %}
-window.addEventListener('DOMContentLoaded', () => {
-    cargarPracticas();
-});
-{% endif %}
 </script>
 {% endblock %}

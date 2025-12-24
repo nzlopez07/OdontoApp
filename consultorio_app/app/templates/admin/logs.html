@@ -1,25 +1,184 @@
 {% extends "base.html" %}
 
-{% block title %}Logs del Sistema{% endblock %}
+{% block title %}Logs del Sistema - Admin{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="bi bi-file-text"></i> Logs del Sistema</h1>
-            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Volver al Dashboard
-            </a>
-        </div>
-
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <i class="bi bi-terminal"></i> Registro Completo de Eventos
-            </div>
-            <div class="card-body p-0">
-                <pre class="bg-dark text-light p-3 m-0" style="max-height: 80vh; overflow-y: auto; font-size: 0.8rem;">{% for line in log_lines %}{{ line }}{% endfor %}</pre>
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-file-alt"></i> Logs del Sistema</h1>
+                <div>
+                    <a href="{{ url_for('admin.download_log', log_type=log_type) }}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Descargar Log
+                    </a>
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Dashboard
+                    </a>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Información del archivo -->
+    {% if file_info.existe %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <strong>Archivo:</strong> {{ log_type }}.log | 
+                <strong>Tamaño:</strong> {{ "%.2f"|format(file_info.tamano / 1024) }} KB | 
+                <strong>Última modificación:</strong> {{ file_info.ultima_modificacion }} | 
+                <strong>Líneas mostradas:</strong> {{ log_lines|length }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter"></i> Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('admin.ver_logs') }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="log_type" class="form-label">Tipo de Log</label>
+                        <select name="log_type" id="log_type" class="form-select">
+                            {% for type in log_types %}
+                            <option value="{{ type }}" {% if type == log_type %}selected{% endif %}>
+                                {{ type|upper }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="level" class="form-label">Nivel</label>
+                        <select name="level" id="level" class="form-select">
+                            <option value="">Todos</option>
+                            {% for level in log_levels %}
+                            <option value="{{ level }}" {% if level == level_filter %}selected{% endif %}>
+                                {{ level }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="lines" class="form-label">Líneas</label>
+                        <select name="lines" id="lines" class="form-select">
+                            <option value="100" {% if lines_count == 100 %}selected{% endif %}>100</option>
+                            <option value="200" {% if lines_count == 200 %}selected{% endif %}>200</option>
+                            <option value="500" {% if lines_count == 500 %}selected{% endif %}>500</option>
+                            <option value="1000" {% if lines_count == 1000 %}selected{% endif %}>1000</option>
+                            <option value="5000" {% if lines_count == 5000 %}selected{% endif %}>5000</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Buscar</label>
+                        <input type="text" name="search" id="search" class="form-control" 
+                               value="{{ search_term }}" placeholder="Buscar en logs...">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <a href="{{ url_for('admin.ver_logs', log_type=log_type) }}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-redo"></i> Limpiar filtros
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leyenda de colores -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex gap-3 flex-wrap">
+                <span class="badge bg-secondary">DEBUG</span>
+                <span class="badge bg-info">INFO</span>
+                <span class="badge bg-warning text-dark">WARNING</span>
+                <span class="badge bg-danger">ERROR</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <i class="fas fa-terminal"></i> Registro de Eventos
+            {% if search_term %}
+            <span class="badge bg-warning text-dark ms-2">Búsqueda: "{{ search_term }}"</span>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            {% if log_lines %}
+            <div class="log-viewer" style="background-color: #1e1e1e; color: #d4d4d4; padding: 1rem; max-height: 70vh; overflow-y: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; line-height: 1.5;">
+                {% for line in log_lines %}
+                <div class="log-line {% if 'ERROR' in line %}text-danger{% elif 'WARNING' in line %}text-warning{% elif 'INFO' in line %}text-info{% elif 'DEBUG' in line %}text-secondary{% endif %}" style="border-bottom: 1px solid #333; padding: 0.25rem 0;">{{ line|safe }}</div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>No hay logs para mostrar con los filtros seleccionados.</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+            <small class="text-muted">
+                Tip: Usa los filtros para encontrar eventos específicos. Los logs se actualizan en tiempo real.
+                <br>
+                <strong>Privacidad:</strong> Estos logs NO contienen datos clínicos (nombres, DNI, diagnósticos). Solo IDs numéricos y eventos técnicos.
+            </small>
+        </div>
+    </div>
 </div>
+
+<style>
+.log-line {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.log-viewer::-webkit-scrollbar {
+    width: 10px;
+}
+
+.log-viewer::-webkit-scrollbar-track {
+    background: #2d2d2d;
+}
+
+.log-viewer::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 5px;
+}
+
+.log-viewer::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+</style>
+
+<script>
+// Auto-scroll al final del log viewer cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    const logViewer = document.querySelector('.log-viewer');
+    if (logViewer) {
+        // Opcional: scroll automático al final
+        // logViewer.scrollTop = logViewer.scrollHeight;
+    }
+});
+</script>
 {% endblock %}

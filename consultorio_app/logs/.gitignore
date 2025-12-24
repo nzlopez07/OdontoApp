@@ -1,0 +1,6 @@
+# Logs y archivos rotativos
+*.log
+*.log.*
+
+# Mantener el directorio pero no su contenido
+!.gitkeep

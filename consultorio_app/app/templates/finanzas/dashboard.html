@@ -51,18 +51,6 @@
                                value="{{ fecha_hasta.isoformat() if fecha_hasta }}">
                     </div>
                     
-                    <div class="col-md-3">
-                        <label for="paciente_id" class="form-label">Paciente (opcional)</label>
-                        <select name="paciente_id" id="paciente_id" class="form-select">
-                            <option value="">Todos los pacientes</option>
-                            {% for paciente in pacientes %}
-                            <option value="{{ paciente.id }}" {% if paciente_id == paciente.id %}selected{% endif %}>
-                                {{ paciente.apellido }}, {{ paciente.nombre }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
                     <div class="col-md-12">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-search"></i> Aplicar Filtros
@@ -115,21 +103,62 @@
         </div>
     </div>
 
+    <!-- Resumen por Fuente de Pago -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3"><i class="fas fa-coins"></i> Ingresos por Fuente de Pago</h4>
+        </div>
+        {% for fuente in ingresos_por_fuente %}
+        <div class="col-md-3 mb-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">{{ fuente.fuente }}</h6>
+                            <h4 class="mb-0">${{ "{:,.2f}".format(fuente.total) }}</h4>
+                            <small class="text-muted">{{ fuente.cantidad }} prestacion{% if fuente.cantidad != 1 %}es{% endif %}</small>
+                        </div>
+                        <div>
+                            {% if fuente.fuente == 'Particular' %}
+                            <i class="fas fa-user fa-2x text-info"></i>
+                            {% else %}
+                            <i class="fas fa-briefcase-medical fa-2x text-info"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
     <!-- Gráficos -->
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
+                        {% if obra_social and obra_social|lower not in ['todo', 'todas'] %}
                         <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Ingresos por Práctica</h5>
                         <span class="badge bg-secondary">{{ obra_social }}</span>
+                        {% else %}
+                        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Distribución por Fuente de Pago</h5>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if ingresos_por_practica %}
-                    <canvas id="chartIngresosTipo"></canvas>
+                    {% if obra_social and obra_social|lower not in ['todo', 'todas'] %}
+                        {% if ingresos_por_practica %}
+                        <canvas id="chartIngresosTipo"></canvas>
+                        {% else %}
+                        <p class="text-muted text-center">No hay datos de ingresos para {{ obra_social }} en este período</p>
+                        {% endif %}
                     {% else %}
-                    <p class="text-muted text-center">No hay datos de ingresos para {{ obra_social }} en este período</p>
+                        {% if ingresos_por_fuente %}
+                        <canvas id="chartIngresosFuente"></canvas>
+                        {% else %}
+                        <p class="text-muted text-center">No hay datos de ingresos en este período</p>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -221,6 +250,52 @@
         </div>
     </div>
 
+    <!-- Detalle de Prestaciones (solo cuando se selecciona una obra social específica) -->
+    {% if detalle_prestaciones and obra_social and obra_social|lower not in ['todo', 'todas'] %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Detalle de Prestaciones - {{ obra_social }}</h5>
+                        <span class="badge bg-info">Últimas {{ detalle_prestaciones|length }} prestaciones</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Paciente</th>
+                                    <th>Prácticas</th>
+                                    <th class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prestacion in detalle_prestaciones %}
+                                <tr>
+                                    <td>{{ prestacion.fecha.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ prestacion.paciente }}</td>
+                                    <td><small>{{ prestacion.practicas }}</small></td>
+                                    <td class="text-end"><strong>${{ "{:,.2f}".format(prestacion.monto) }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary">
+                                    <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end"><strong>${{ "{:,.2f}".format(detalle_prestaciones|sum(attribute='monto')) }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Enlaces a otras secciones -->
     <div class="row mt-4">
         <div class="col-md-12">
@@ -254,8 +329,51 @@
     // Llamar al cargar la página
     toggleFechasPersonalizadas();
     
-    // Gráfico de ingresos por obra social
-    {% if ingresos_por_practica %}
+    // Gráfico de distribución por fuente de pago (cuando está en "Todo")
+    {% if obra_social and obra_social|lower in ['todo', 'todas'] and ingresos_por_fuente %}
+    const ctxIngresosFuente = document.getElementById('chartIngresosFuente').getContext('2d');
+    new Chart(ctxIngresosFuente, {
+        type: 'pie',
+        data: {
+            labels: [{% for item in ingresos_por_fuente %}'{{ item.fuente }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in ingresos_por_fuente %}{{ item.total }},{% endfor %}],
+                backgroundColor: [
+                    '#198754',
+                    '#0d6efd',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6f42c1',
+                    '#20c997',
+                    '#fd7e14',
+                    '#0dcaf0'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return label + ': $' + value.toFixed(2) + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+    
+    // Gráfico de ingresos por práctica (cuando hay obra social específica)
+    {% if obra_social and obra_social|lower not in ['todo', 'todas'] and ingresos_por_practica %}
     const ctxIngresos = document.getElementById('chartIngresosTipo').getContext('2d');
     new Chart(ctxIngresos, {
         type: 'pie',
@@ -269,7 +387,9 @@
                     '#ffc107',
                     '#dc3545',
                     '#6f42c1',
-                    '#20c997'
+                    '#20c997',
+                    '#fd7e14',
+                    '#0dcaf0'
                 ]
             }]
         },

@@ -68,27 +68,39 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('main.login') }}">
+        <form method="POST" action="{{ url_for('main.login') }}" novalidate>
+            {{ form.hidden_tag() }}
+            
             <div class="mb-3">
-                <label for="username" class="form-label">Usuario o Email</label>
-                <input type="text" class="form-control" id="username" name="username" required autofocus>
+                {{ form.username.label(for="username", class="form-label") }}
+                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), autofocus=True, placeholder="Usuario") }}
+                {% if form.username.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.username.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="mb-3">
-                <label for="password" class="form-label">Contraseña</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                {{ form.password.label(for="password", class="form-label") }}
+                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Contraseña") }}
+                {% if form.password.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.password.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                <label class="form-check-label" for="remember">
-                    Recordarme
-                </label>
+                {{ form.remember(class="form-check-input") }}
+                {{ form.remember.label(class="form-check-label") }}
             </div>
 
-            <button type="submit" class="btn btn-primary btn-login w-100">
-                Iniciar Sesión
-            </button>
+            {{ form.submit(class="btn btn-primary btn-login w-100") }}
         </form>
 
         <div class="text-center mt-4">

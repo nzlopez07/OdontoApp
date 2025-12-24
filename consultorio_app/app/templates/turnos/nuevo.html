@@ -2,52 +2,69 @@
 
 {% block title %}Nuevo Turno{% endblock %}
 
+{% macro render_field(field) %}
+    <div class="col-md-6">
+        {{ field.label(class="form-label") }}
+        {% if field.type == 'SelectField' and field.id == 'paciente_id' %}
+            {# Autocomplete para paciente #}
+            <div class="autocomplete-wrapper" style="position: relative;">
+                <input type="text" 
+                       class="form-control autocomplete-input" 
+                       id="{{ field.id }}_search"
+                       placeholder="Escribir nombre del paciente..."
+                       autocomplete="off">
+                {{ field(class="d-none", id=field.id) }}
+                <div class="autocomplete-list" style="position: absolute; z-index: 1000; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ced4da; border-top: none; display: none; border-radius: 0 0 0.25rem 0.25rem;"></div>
+            </div>
+        {% elif field.type == 'SelectField' %}
+            {{ field(class="form-select" + (" is-invalid" if field.errors else "")) }}
+        {% elif field.type == 'TextAreaField' %}
+            {{ field(class="form-control" + (" is-invalid" if field.errors else ""), rows=3) }}
+        {% else %}
+            {{ field(class="form-control" + (" is-invalid" if field.errors else "")) }}
+        {% endif %}
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in field.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
 {% block content %}
 <h3 class="mb-3">Nuevo Turno</h3>
 <div class="card">
     <div class="card-body">
-        <form method="post">
+        <form method="post" novalidate>
+            {{ form.hidden_tag() }}
             <div class="row g-3">
+                {{ render_field(form.paciente_id) }}
+                {{ render_field(form.fecha) }}
+                {{ render_field(form.hora) }}
                 <div class="col-md-6">
-                    <label class="form-label">Paciente</label>
-                    <input type="hidden" id="pacienteId" name="paciente_id" required>
-                    <input list="pacientesList" id="pacienteInput" class="form-control" placeholder="Escriba nombre o DNI" autocomplete="off" required>
-                    <datalist id="pacientesList">
-                        {% for paciente in pacientes %}
-                        <option value="{{ paciente.apellido }}, {{ paciente.nombre }} (DNI: {{ paciente.dni }})" data-id="{{ paciente.id }}"></option>
-                        {% endfor %}
-                    </datalist>
-                    <small class="text-muted">Seleccione de la lista; se filtra mientras escribe.</small>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Fecha</label>
-                    <input type="date" name="fecha" class="form-control" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Hora</label>
-                    <input type="time" name="hora" class="form-control" step="300" required>
-                    <small class="text-muted">Puede ingresar minutos libres (ej: 12:15)</small>
-                </div>
-                <div class="col-md-3">
                     <label class="form-label">Duración</label>
-                    <div class="input-group">
-                        <input type="number" name="duracion_horas" class="form-control" min="0" max="8" value="0">
-                        <span class="input-group-text">h</span>
-                        <input type="number" name="duracion_minutos" class="form-control" min="0" max="59" step="5" value="30">
-                        <span class="input-group-text">min</span>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            {{ form.duracion_horas(class="form-control", placeholder="Horas") }}
+                            {% if form.duracion_horas.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.duracion_horas.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-6">
+                            {{ form.duracion_minutos(class="form-control", placeholder="Minutos") }}
+                            {% if form.duracion_minutos.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.duracion_minutos.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    <small class="text-muted">Ej: 1 h 50 min</small>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Estado</label>
-                    <input type="hidden" name="estado" value="Confirmado">
-                    <div class="form-control bg-light">Confirmado (creado desde la web)</div>
-                    <small class="text-muted">Los turnos web se crean confirmados por defecto.</small>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Detalle</label>
-                    <textarea name="detalle" class="form-control" rows="3" placeholder="Motivo o notas"></textarea>
-                </div>
+                {{ render_field(form.detalle) }}
             </div>
             <div class="d-flex justify-content-end gap-2 mt-3">
                 <a href="{{ url_for('main.listar_turnos') }}" class="btn btn-outline-secondary">Cancelar</a>
@@ -59,38 +76,118 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const input = document.getElementById('pacienteInput');
-    const hiddenId = document.getElementById('pacienteId');
-    const list = document.getElementById('pacientesList');
-    if (!input || !hiddenId || !list) return;
-
-    // Map displayed text to patient id for quick lookup
-    const optionMap = new Map();
-    Array.from(list.options).forEach(opt => {
-        optionMap.set(opt.value, opt.dataset.id);
-    });
-
-    input.addEventListener('input', function() {
-        const val = this.value;
-        const matchedId = optionMap.get(val);
-        hiddenId.value = matchedId || '';
-        if (!matchedId) {
-            this.setCustomValidity('Seleccione un paciente de la lista');
-        } else {
-            this.setCustomValidity('');
+    // Función para normalizar texto (eliminar tildes/acentos)
+    function normalizeText(text) {
+        return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+    
+    // Autocomplete para paciente
+    function setupAutocomplete(selectElement) {
+        const wrapper = selectElement.closest('.autocomplete-wrapper');
+        if (!wrapper) return;
+        
+        const input = wrapper.querySelector('.autocomplete-input');
+        const list = wrapper.querySelector('.autocomplete-list');
+        
+        if (!input || !list) return;
+        
+        // Obtener todas las opciones del select
+        const options = Array.from(selectElement.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            normalized: normalizeText(opt.text)
+        }));
+        
+        // Pre-poblar el input si hay un valor seleccionado
+        const selectedOption = options.find(opt => opt.value == selectElement.value);
+        if (selectedOption && selectedOption.value !== '0') {
+            input.value = selectedOption.text;
         }
-    });
-
-    input.addEventListener('blur', function() {
-        const val = this.value;
-        const matchedId = optionMap.get(val);
-        hiddenId.value = matchedId || '';
-        if (!matchedId && val.trim() !== '') {
-            this.setCustomValidity('Seleccione un paciente de la lista');
-        } else {
-            this.setCustomValidity('');
-        }
-    });
+        
+        // Filtrar y mostrar resultados
+        input.addEventListener('input', function() {
+            const searchTerm = normalizeText(this.value.trim());
+            
+            if (searchTerm === '') {
+                list.style.display = 'none';
+                selectElement.value = '0';
+                return;
+            }
+            
+            const filtered = options.filter(opt => 
+                opt.normalized.includes(searchTerm) && opt.value !== '0'
+            );
+            
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="p-2 text-muted">No se encontraron pacientes</div>';
+                list.style.display = 'block';
+                selectElement.value = '0';
+                return;
+            }
+            
+            list.innerHTML = filtered.map(opt => 
+                `<div class="autocomplete-item p-2" style="cursor: pointer;" data-value="${opt.value}">${opt.text}</div>`
+            ).join('');
+            
+            list.style.display = 'block';
+            
+            // Agregar hover effect y click
+            list.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f8f9fa';
+                });
+                item.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = 'white';
+                });
+                item.addEventListener('click', function() {
+                    const value = this.getAttribute('data-value');
+                    const text = this.textContent;
+                    selectElement.value = value;
+                    input.value = text;
+                    list.style.display = 'none';
+                });
+            });
+        });
+        
+        // Cerrar lista al hacer click fuera
+        document.addEventListener('click', function(e) {
+            if (!wrapper.contains(e.target)) {
+                list.style.display = 'none';
+            }
+        });
+        
+        // Mostrar todas las opciones al hacer foco
+        input.addEventListener('focus', function() {
+            if (this.value === '') {
+                const allOptions = options.filter(opt => opt.value !== '0');
+                list.innerHTML = allOptions.map(opt => 
+                    `<div class="autocomplete-item p-2" style="cursor: pointer;" data-value="${opt.value}">${opt.text}</div>`
+                ).join('');
+                
+                list.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#f8f9fa';
+                    });
+                    item.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = 'white';
+                    });
+                    item.addEventListener('click', function() {
+                        const value = this.getAttribute('data-value');
+                        const text = this.textContent;
+                        selectElement.value = value;
+                        input.value = text;
+                        list.style.display = 'none';
+                    });
+                });
+                
+                list.style.display = 'block';
+            }
+        });
+    }
+    
+    // Aplicar autocomplete a paciente
+    const pacienteSelect = document.getElementById('paciente_id');
+    if (pacienteSelect) setupAutocomplete(pacienteSelect);
 });
 </script>
 {% endblock %}

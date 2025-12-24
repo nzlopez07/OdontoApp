@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required
+from app.forms import PracticaForm
 from app.services.practica import (
     ListarPracticasService,
     CrearPracticaService,
@@ -40,33 +41,33 @@ def listar_practicas():
 @main_bp.route('/practicas/nueva', methods=['GET', 'POST'])
 @login_required
 def crear_practica():
-    obras_sociales = ObraSocial.query.all()
+    form = PracticaForm()
     
-    if request.method == 'POST':
+    # Populate dynamic choices
+    obras_sociales = ObraSocial.query.all()
+    form.obra_social_id.choices = [(0, 'Seleccionar...')] + [(o.id, o.nombre) for o in obras_sociales]
+    
+    if form.validate_on_submit():
         try:
-            proveedor_tipo = request.form.get('proveedor_tipo', 'PARTICULAR')
-            obra_social_id = None
-            if proveedor_tipo == 'OBRA_SOCIAL':
-                obra_social_id_str = request.form.get('obra_social_id')
-                obra_social_id = int(obra_social_id_str) if obra_social_id_str else None
+            # Determinar proveedor_tipo automáticamente según obra social seleccionada
+            obra_social_id = form.obra_social_id.data if form.obra_social_id.data else None
+            proveedor_tipo = 'OBRA_SOCIAL' if obra_social_id else 'PARTICULAR'
             
             practica = CrearPracticaService.execute({
-                'codigo': request.form['codigo'],
-                'descripcion': request.form['descripcion'],
+                'codigo': form.codigo.data,
+                'descripcion': form.descripcion.data,
                 'proveedor_tipo': proveedor_tipo,
                 'obra_social_id': obra_social_id,
-                'monto_unitario': float(request.form['monto_unitario'])
+                'monto_unitario': float(form.monto_unitario.data)
             })
             flash('Práctica creada exitosamente', 'success')
             return redirect(url_for('main.listar_practicas'))
         except DatosInvalidosError as e:
             flash(str(e), 'error')
-        except ValueError as e:
-            flash(f'Datos inválidos: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error al crear práctica: {str(e)}', 'error')
     
-    return render_template('practicas/formulario.html', obras_sociales=obras_sociales)
+    return render_template('practicas/formulario.html', form=form, obras_sociales=obras_sociales)
 
 
 @main_bp.route('/practicas/<int:id>/editar', methods=['GET', 'POST'])
@@ -78,33 +79,39 @@ def editar_practica(id: int):
         flash('Práctica no encontrada', 'error')
         return redirect(url_for('main.listar_practicas'))
     
+    form = PracticaForm()
     obras_sociales = ObraSocial.query.all()
+    form.obra_social_id.choices = [(0, 'Seleccionar...')] + [(o.id, o.nombre) for o in obras_sociales]
     
-    if request.method == 'POST':
+    if form.validate_on_submit():
         try:
-            proveedor_tipo = request.form.get('proveedor_tipo', 'PARTICULAR')
-            obra_social_id = None
-            if proveedor_tipo == 'OBRA_SOCIAL':
-                obra_social_id_str = request.form.get('obra_social_id')
-                obra_social_id = int(obra_social_id_str) if obra_social_id_str else None
+            # Determinar proveedor_tipo automáticamente según obra social seleccionada
+            obra_social_id = form.obra_social_id.data if form.obra_social_id.data else None
+            proveedor_tipo = 'OBRA_SOCIAL' if obra_social_id else 'PARTICULAR'
             
             practica = EditarPracticaService.execute(id, {
-                'codigo': request.form['codigo'],
-                'descripcion': request.form['descripcion'],
+                'codigo': form.codigo.data,
+                'descripcion': form.descripcion.data,
                 'proveedor_tipo': proveedor_tipo,
                 'obra_social_id': obra_social_id,
-                'monto_unitario': float(request.form['monto_unitario'])
+                'monto_unitario': float(form.monto_unitario.data)
             })
             flash('Práctica actualizada exitosamente', 'success')
             return redirect(url_for('main.listar_practicas'))
-        except (PracticaNoEncontradaError, DatosInvalidosError) as e:
+        except PracticaNoEncontradaError as e:
             flash(str(e), 'error')
-        except ValueError as e:
-            flash(f'Datos inválidos: {str(e)}', 'error')
+        except DatosInvalidosError as e:
+            flash(str(e), 'error')
         except Exception as e:
             flash(f'Error al actualizar práctica: {str(e)}', 'error')
+    elif request.method == 'GET':
+        # Pre-populate form on GET
+        form.codigo.data = practica.codigo
+        form.descripcion.data = practica.descripcion
+        form.obra_social_id.data = practica.obra_social_id or 0
+        form.monto_unitario.data = practica.monto_unitario
     
-    return render_template('practicas/formulario.html', practica=practica, obras_sociales=obras_sociales)
+    return render_template('practicas/formulario.html', form=form, practica=practica, obras_sociales=obras_sociales)
 
 
 @main_bp.route('/practicas/<int:id>/eliminar', methods=['POST'])

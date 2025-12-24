@@ -257,6 +257,81 @@ class ObtenerEstadisticasFinanzasService:
         ]
     
     @staticmethod
+    def obtener_detalle_prestaciones(
+        obra_social: Optional[str] = None,
+        fecha_desde: Optional[date] = None,
+        fecha_hasta: Optional[date] = None,
+        limite: int = 50
+    ) -> List[Dict]:
+        """
+        Obtiene detalle de prestaciones individuales para una obra social.
+        
+        Args:
+            obra_social: Nombre de la obra social (opcional)
+            fecha_desde: Fecha desde (opcional)
+            fecha_hasta: Fecha hasta (opcional)
+            limite: Número máximo de registros a devolver
+            
+        Returns:
+            Lista de diccionarios con detalles de cada prestación
+        """
+        query = db.session.query(
+            Prestacion.id,
+            Prestacion.fecha,
+            Prestacion.monto,
+            Paciente.nombre.label('paciente_nombre'),
+            Paciente.apellido.label('paciente_apellido'),
+            func.coalesce(ObraSocial.nombre, 'Particular').label('obra_social_nombre')
+        ).join(Paciente, Prestacion.paciente_id == Paciente.id)
+        query = query.outerjoin(ObraSocial, Paciente.obra_social_id == ObraSocial.id)
+        
+        filtros = []
+        if fecha_desde:
+            filtros.append(func.date(Prestacion.fecha) >= fecha_desde)
+        if fecha_hasta:
+            filtros.append(func.date(Prestacion.fecha) <= fecha_hasta)
+        
+        if obra_social and obra_social.lower() not in ('todas', 'todo'):
+            if obra_social.lower() == 'particular':
+                filtros.append(or_(ObraSocial.nombre == 'Particular', ObraSocial.id.is_(None)))
+            else:
+                filtros.append(func.lower(ObraSocial.nombre) == obra_social.lower())
+        
+        if filtros:
+            query = query.filter(and_(*filtros))
+        
+        query = query.order_by(Prestacion.fecha.desc()).limit(limite)
+        resultados = query.all()
+        
+        # Obtener prácticas asociadas a cada prestación
+        prestaciones_detalle = []
+        for row in resultados:
+            # Obtener prácticas de esta prestación
+            practicas_query = db.session.query(
+                Practica.codigo,
+                Practica.descripcion,
+                PrestacionPractica.cantidad
+            ).join(PrestacionPractica, Practica.id == PrestacionPractica.practica_id)
+            practicas_query = practicas_query.filter(PrestacionPractica.prestacion_id == row.id)
+            practicas = practicas_query.all()
+            
+            # Formatear prácticas como string
+            practicas_str = ', '.join([
+                f"{p.codigo} ({p.cantidad})" for p in practicas
+            ])
+            
+            prestaciones_detalle.append({
+                'id': row.id,
+                'fecha': row.fecha,
+                'paciente': f"{row.paciente_nombre} {row.paciente_apellido}",
+                'practicas': practicas_str,
+                'monto': float(row.monto),
+                'obra_social': row.obra_social_nombre
+            })
+        
+        return prestaciones_detalle
+    
+    @staticmethod
     def obtener_evolucion_mensual(anio: int) -> Dict:
         """
         Obtiene evolución de ingresos y egresos por mes.

@@ -1,7 +1,9 @@
 from datetime import datetime
+from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from app.database import db
+from app.forms import PrestacionForm
 from app.services.prestacion import ListarPrestacionesService, CrearPrestacionService
 from app.services.paciente import BuscarPacientesService
 from app.services.practica import ListarPracticasService
@@ -61,48 +63,75 @@ def listar_prestaciones_paciente(paciente_id: int):
 @main_bp.route('/prestaciones/nueva', methods=['GET', 'POST'])
 @login_required
 def nueva_prestacion():
-    paciente_id = request.args.get('paciente_id')
+    """Crear nueva prestación con validación WTF."""
+    form = PrestacionForm()
     
-    if request.method == 'POST':
+    # Poblar select fields dinámicamente
+    form.paciente_id.choices = [
+        (0, '--- Seleccionar ---'),
+        *[(p.id, f'{p.nombre} {p.apellido} (DNI: {p.dni})') for p in BuscarPacientesService.listar_todos()]
+    ]
+    
+    # Pre-cargar paciente si viene en la URL
+    paciente_id_url = request.args.get('paciente_id', type=int)
+    if paciente_id_url and request.method == 'GET':
+        form.paciente_id.data = paciente_id_url
+    
+    if form.validate_on_submit():
         try:
-            paciente_id_form = int(request.form['paciente_id'])
-            practicas_ids = request.form.getlist('practica_ids[]')
+            # Obtener las prácticas seleccionadas desde el formulario JavaScript
+            practica_ids = request.form.getlist('practica_ids[]', type=int)
             
-            # Convertir IDs a lista de enteros
-            practicas_list = [int(pid) for pid in practicas_ids if pid.strip()]
+            if not practica_ids:
+                flash('Debe seleccionar al menos una práctica', 'warning')
+                # Pasar datos al template para preservar estado
+                return render_template(
+                    'prestaciones/nueva.html', 
+                    form=form,
+                    practica_ids_str=','.join(str(id) for id in practica_ids)
+                )
             
-            # Obtener descuentos
-            desc_pct_str = request.form.get('descuento_porcentaje', '').strip()
-            desc_fijo_str = request.form.get('descuento_fijo', '').strip()
-            desc_pct = float(desc_pct_str) if desc_pct_str else 0
-            desc_fijo = float(desc_fijo_str) if desc_fijo_str else 0
+            # El monto viene como HiddenField calculado por JavaScript
+            monto_str = form.monto.data or '0'
+            try:
+                monto = Decimal(str(monto_str))
+            except:
+                monto = Decimal('0')
+            
+            # Procesar observaciones: convertir cadena vacía a None
+            observaciones = form.observaciones.data
+            if observaciones and isinstance(observaciones, str):
+                observaciones = observaciones.strip() or None
+            else:
+                observaciones = None
             
             prestacion = CrearPrestacionService.execute({
-                'paciente_id': paciente_id_form,
-                'descripcion': request.form['descripcion'],
-                'observaciones': request.form.get('observaciones'),
-                'practicas': practicas_list,
-                'descuento_porcentaje': desc_pct,
-                'descuento_fijo': desc_fijo,
+                'paciente_id': form.paciente_id.data,
+                'descripcion': form.descripcion.data,
+                'observaciones': observaciones,
+                'practicas': practica_ids,  # Lista de IDs de prácticas
+                'descuento_porcentaje': float(form.descuento_porcentaje.data or 0),
+                'descuento_fijo': float(form.descuento_fijo.data or 0),
             })
             flash('Prestación registrada exitosamente', 'success')
-            return redirect(url_for('main.ver_paciente', id=paciente_id_form))
+            return redirect(url_for('main.ver_paciente', id=form.paciente_id.data))
         except (PacienteNoEncontradoError, PracticaNoEncontradaError, DatosInvalidosError) as e:
             flash(str(e), 'error')
-        except ValueError as e:
-            flash(f'Datos inválidos: {str(e)}', 'error')
+            # Pasar datos al template para preservar estado
+            practica_ids = request.form.getlist('practica_ids[]', type=int)
+            return render_template(
+                'prestaciones/nueva.html', 
+                form=form,
+                practica_ids_str=','.join(str(id) for id in practica_ids)
+            )
         except Exception as e:
             db.session.rollback()
             flash(f'Error al registrar prestación: {str(e)}', 'error')
+            practica_ids = request.form.getlist('practica_ids[]', type=int)
+            return render_template(
+                'prestaciones/nueva.html', 
+                form=form,
+                practica_ids_str=','.join(str(id) for id in practica_ids)
+            )
 
-    pacientes = BuscarPacientesService.listar_todos()
-    practicas_disponibles = []
-    if paciente_id:
-        try:
-            paciente_id_int = int(paciente_id)
-            # Obtener todas las prácticas (mejorar luego con filtro por obra social del paciente)
-            practicas_disponibles = ListarPracticasService.listar_todas()
-        except (ValueError, TypeError):
-            paciente_id = None
-    
-    return render_template('prestaciones/nueva.html', pacientes=pacientes, practicas=practicas_disponibles, paciente_id=paciente_id)
+    return render_template('prestaciones/nueva.html', form=form)
