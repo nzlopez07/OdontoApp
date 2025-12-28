@@ -8,7 +8,7 @@ turno_service.py, calculando porcentajes de top y height para posicionamiento vi
 from datetime import date, datetime, timedelta, time
 from typing import Dict, List, Any
 from app.database.session import DatabaseSession
-from app.models import Turno, Paciente
+from app.models import Turno, Paciente, Estado
 from sqlalchemy.orm import joinedload
 
 
@@ -75,15 +75,23 @@ class ObtenerAgendaService:
                 'bloques': [],
             }
         
+        # Obtener id de Cancelado
+        estado_cancelado = Estado.query.filter_by(nombre='Cancelado').first()
+        estado_cancelado_id = estado_cancelado.id if estado_cancelado else None
+
         # Query turnos de la semana, ordenados por fecha y hora
         # Excluir solo cancelados; NoAtendido se muestra en agenda (reserva que no se atendió)
-        turnos = session.query(Turno).options(
-            joinedload(Turno.paciente)
-        ).filter(
+        filtros = [
             Turno.fecha >= fecha_lunes,
             Turno.fecha <= fecha_domingo,
-            Turno.estado != 'Cancelado'  # Solo excluir Cancelado
-        ).order_by(Turno.fecha, Turno.hora).all()
+        ]
+        if estado_cancelado_id:
+            filtros.append(Turno.estado_id != estado_cancelado_id)
+
+        turnos = session.query(Turno).options(
+            joinedload(Turno.paciente),
+            joinedload(Turno.estado_obj),
+        ).filter(*filtros).order_by(Turno.fecha, Turno.hora).all()
         
         # Calcular constantes de positioning
         horario_inicio_min = ObtenerAgendaService.HORARIO_INICIO_HORA * 60 + ObtenerAgendaService.HORARIO_INICIO_MIN  # 480
@@ -129,7 +137,7 @@ class ObtenerAgendaService:
                 'hora_fin': hora_fin,
                 'duracion': turno.duracion,
                 'detalle': turno.detalle,
-                'estado': turno.estado,
+                'estado': turno.estado_nombre,
                 'top_pct': round(top_pct, 2),
                 'height_pct': round(height_pct, 2),
                 'truncado': turno_fin_min > total_minutos_dia,
@@ -188,12 +196,17 @@ class ObtenerAgendaService:
         
         # Query turnos del día
         # Excluir solo cancelados; NoAtendido se muestra en agenda (reserva que no se atendió)
+        estado_cancelado = Estado.query.filter_by(nombre='Cancelado').first()
+        estado_cancelado_id = estado_cancelado.id if estado_cancelado else None
+
+        filtros = [Turno.fecha == fecha]
+        if estado_cancelado_id:
+            filtros.append(Turno.estado_id != estado_cancelado_id)
+
         turnos = session.query(Turno).options(
-            joinedload(Turno.paciente)
-        ).filter(
-            Turno.fecha == fecha,
-            Turno.estado != 'Cancelado'  # Solo excluir Cancelado
-        ).order_by(Turno.hora).all()
+            joinedload(Turno.paciente),
+            joinedload(Turno.estado_obj),
+        ).filter(*filtros).order_by(Turno.hora).all()
         
         # Calcular constantes
         horario_inicio_min = ObtenerAgendaService.HORARIO_INICIO_HORA * 60 + ObtenerAgendaService.HORARIO_INICIO_MIN
@@ -231,7 +244,7 @@ class ObtenerAgendaService:
                 'hora_fin': hora_fin,
                 'duracion': turno.duracion,
                 'detalle': turno.detalle,
-                'estado': turno.estado,
+                'estado': turno.estado_nombre,
                 'top_pct': round(top_pct, 2),
                 'height_pct': round(height_pct, 2),
                 'truncado': turno_fin_min > total_minutos_dia,

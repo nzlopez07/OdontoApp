@@ -65,7 +65,7 @@ class EditarTurnoService:
                 raise TurnoNoEncontradoError(turno_id)
             
             # Verificar que no está en estado final
-            estado_actual = turno.estado or 'Pendiente'
+            estado_actual = turno.estado_nombre
             estados_finales = ['Atendido', 'NoAtendido', 'Cancelado']
             if estado_actual in estados_finales:
                 raise EstadoFinalError(
@@ -99,6 +99,11 @@ class EditarTurnoService:
                 fecha_check = turno.fecha
                 hora_check = turno.hora
                 duracion_check = turno.duracion
+
+                # No permitir reagendar a una hora pasada del día actual
+                es_valida, mensaje = ValidadorTurno.validar_fecha_hora_futura(fecha_check, hora_check)
+                if not es_valida:
+                    raise TurnoHoraInvalidaError(mensaje)
                 
                 hora_fin_turno = datetime.combine(date.today(), hora_check) + timedelta(minutes=duracion_check)
                 if hora_fin_turno.time() > ValidadorTurno.HORARIO_FIN:
@@ -140,10 +145,14 @@ class EditarTurnoService:
         inicio_min = hora.hour * 60 + hora.minute
         fin_min = inicio_min + duracion
         
-        query = Turno.query.filter(
-            Turno.fecha == fecha,
-            ~Turno.estado.in_(['Cancelado', 'NoAtendido'])  # No bloquean slots
-        )
+        estados_excluir = {
+            e.nombre: e.id for e in Estado.query.filter(Estado.nombre.in_(['Cancelado', 'NoAtendido'])).all()
+        }
+        ids_excluir = [eid for eid in [estados_excluir.get('Cancelado'), estados_excluir.get('NoAtendido')] if eid]
+
+        query = Turno.query.filter(Turno.fecha == fecha)
+        if ids_excluir:
+            query = query.filter(~Turno.estado_id.in_(ids_excluir))
         if turno_id_excluir:
             query = query.filter(Turno.id != turno_id_excluir)
         

@@ -18,6 +18,16 @@ class ListarPrestacionesService:
     """Caso de uso: listar y consultar prestaciones."""
     
     @staticmethod
+    def listar_todas() -> List[Prestacion]:
+        """
+        Lista todas las prestaciones ordenadas por fecha descendente.
+        
+        Returns:
+            Lista de todas las prestaciones
+        """
+        return Prestacion.query.order_by(Prestacion.fecha.desc()).all()
+    
+    @staticmethod
     def listar_por_paciente(
         paciente_id: int,
         pagina: int = 1,

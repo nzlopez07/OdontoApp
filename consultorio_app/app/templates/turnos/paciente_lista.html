@@ -37,7 +37,7 @@
                     <tr>
                         <td>{{ turno.fecha.strftime('%d/%m/%Y') }}</td>
                         <td>{{ turno.hora.strftime('%H:%M') }}</td>
-                        <td>{{ turno.estado or 'Sin estado' }}</td>
+                        <td>{{ turno.estado_nombre }}</td>
                         <td>{{ turno.detalle or '-' }}</td>
                         <td class="text-center">
                             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.ver_turno', turno_id=turno.id) }}">

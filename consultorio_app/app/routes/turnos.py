@@ -24,9 +24,6 @@ from app.services.common import (
 from . import main_bp
 
 
-ESTADOS_VALIDOS = ['Pendiente', 'Confirmado', 'Atendido', 'NoAtendido', 'Cancelado']
-
-
 @main_bp.route('/turnos')
 @login_required
 def listar_turnos():
@@ -183,8 +180,10 @@ def cambiar_estado_turno(turno_id: int):
         description: Estado inválido
     """
     nuevo_estado = request.form.get('estado')
-
-    if nuevo_estado not in ESTADOS_VALIDOS:
+    # Estados válidos desde la BD (fallback a lista conocida si la tabla está vacía)
+    estados_db = [e.nombre for e in Estado.query.order_by(Estado.nombre).all()]
+    estados_validos = estados_db or ['Pendiente', 'Confirmado', 'Atendido', 'NoAtendido', 'Cancelado']
+    if nuevo_estado not in estados_validos:
         flash('Estado inválido', 'error')
         return redirect(url_for('main.listar_turnos'))
 

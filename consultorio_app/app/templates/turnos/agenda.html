@@ -66,8 +66,8 @@
                                 <!-- bloques de turnos posicionados -->
                                 {% for bloque in semana[dia_nombre].bloques %}
                                 <a href="{{ url_for('main.ver_turno', turno_id=bloque.turno.id) }}"
-                                   class="turno-card estado-{{ bloque.turno.estado | lower }}{% if bloque.turno.duracion >= 60 %} turno-largo{% endif %}"
-                                   title="{{ bloque.turno.hora.strftime('%H:%M') }} · {{ bloque.turno.paciente.nombre }} {{ bloque.turno.paciente.apellido }} — {{ bloque.turno.duracion }}min{% if bloque.turno.detalle %} — {{ bloque.turno.detalle }}{% endif %} ({{ bloque.turno.estado }})"
+                                   class="turno-card estado-{{ bloque.turno.estado_nombre | lower }}{% if bloque.turno.duracion >= 60 %} turno-largo{% endif %}"
+                                   title="{{ bloque.turno.hora.strftime('%H:%M') }} · {{ bloque.turno.paciente.nombre }} {{ bloque.turno.paciente.apellido }} — {{ bloque.turno.duracion }}min{% if bloque.turno.detalle %} — {{ bloque.turno.detalle }}{% endif %} ({{ bloque.turno.estado_nombre }})"
                                    data-turno-id="{{ bloque.turno.id }}"
                                    style="top: {{ bloque.top_pct }}%; height: {{ bloque.height_pct }}%">
                                     <div class="turno-label">

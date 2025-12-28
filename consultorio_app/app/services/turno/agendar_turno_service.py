@@ -11,7 +11,7 @@ Responsabilidades:
 
 from datetime import date, time, datetime, timedelta
 from app.database.session import DatabaseSession
-from app.models import Turno, Paciente
+from app.models import Turno, Paciente, Estado
 from app.services.common import (
     PacienteNoEncontradoError,
     TurnoError,
@@ -74,6 +74,11 @@ class AgendarTurnoService:
             es_valida, mensaje = ValidadorTurno.validar_hora(hora)
             if not es_valida:
                 raise TurnoHoraInvalidaError(mensaje)
+
+            # Validar que fecha/hora no sean pasadas (mismo día con hora anterior)
+            es_valida, mensaje = ValidadorTurno.validar_fecha_hora_futura(fecha, hora)
+            if not es_valida:
+                raise TurnoHoraInvalidaError(mensaje)
             
             # Validar duración
             es_valida, mensaje = ValidadorTurno.validar_duracion(duracion)
@@ -92,6 +97,12 @@ class AgendarTurnoService:
             # Verificar solapamiento
             AgendarTurnoService._verificar_solapamiento(fecha, hora, duracion)
             
+            # Resolver estado por nombre (default Confirmado)
+            estado_nombre = estado or 'Confirmado'
+            estado_obj = Estado.query.filter_by(nombre=estado_nombre).first()
+            if not estado_obj:
+                raise TurnoError(f"Estado destino no encontrado en BD: '{estado_nombre}'")
+
             # Crear turno
             turno = Turno(
                 paciente_id=paciente_id,
@@ -99,7 +110,8 @@ class AgendarTurnoService:
                 hora=hora,
                 duracion=duracion,
                 detalle=detalle.strip() if detalle else None,
-                estado=estado,  # Soporta 'Confirmado' (web) y 'Pendiente' (WhatsApp)
+                estado=estado_obj.nombre,
+                estado_id=estado_obj.id,
             )
             
             session.add(turno)
@@ -125,10 +137,14 @@ class AgendarTurnoService:
         inicio_min = hora.hour * 60 + hora.minute
         fin_min = inicio_min + duracion
         
-        query = Turno.query.filter(
-            Turno.fecha == fecha,
-            ~Turno.estado.in_(['Cancelado', 'NoAtendido'])  # No bloquean slots (se pueden reasignar)
-        )
+        estados_excluir = {
+            e.nombre: e.id for e in Estado.query.filter(Estado.nombre.in_(['Cancelado', 'NoAtendido'])).all()
+        }
+        ids_excluir = [eid for eid in [estados_excluir.get('Cancelado'), estados_excluir.get('NoAtendido')] if eid]
+
+        query = Turno.query.filter(Turno.fecha == fecha)
+        if ids_excluir:
+            query = query.filter(~Turno.estado_id.in_(ids_excluir))
         if turno_id_excluir:
             query = query.filter(Turno.id != turno_id_excluir)
         

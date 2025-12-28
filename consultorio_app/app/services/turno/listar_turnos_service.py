@@ -8,7 +8,7 @@ métodos de listado del viejo turno_service.py.
 from datetime import date, datetime
 from typing import Dict, List, Any, Tuple, Optional
 from app.database.session import DatabaseSession
-from app.models import Turno, Paciente
+from app.models import Turno, Paciente, Estado
 from sqlalchemy.orm import joinedload
 
 
@@ -16,6 +16,50 @@ class ListarTurnosService:
     """Servicio para listar y paginar turnos con búsqueda."""
     
     @staticmethod
+    def obtener_turnos_hoy_filtrados(estados_permitidos: Optional[List[str]] = None, limite: int = 10):
+        """
+        Retorna objetos Turno para la fecha de hoy filtrando por estados permitidos.
+
+        Respeta la migración gradual: si `estado_id` es NULL usa el campo legacy `estado`.
+        Si `estado_id` no es NULL, filtra por `Estado.nombre`.
+
+        Args:
+            estados_permitidos: Lista de nombres de estado permitidos, ej: ["Pendiente", "Confirmado"].
+            limite: Máximo de registros a retornar.
+
+        Returns:
+            Lista de modelos `Turno` ordenados por hora ascendente.
+        """
+        from sqlalchemy import or_, and_
+        session = DatabaseSession.get_instance().session
+
+        estados_permitidos = estados_permitidos or ["Pendiente", "Confirmado"]
+
+        # Obtener IDs de estados permitidos (lista explícita para evitar SAWarning)
+        estados_ids = [row.id for row in session.query(Estado).filter(Estado.nombre.in_(estados_permitidos)).all()]
+
+        filtros = [Turno.fecha == date.today()]
+
+        filtros.append(
+            or_(
+                # Caso legacy: estado_id NULL y estado string dentro de permitidos
+                and_(Turno.estado_id.is_(None), Turno.estado.in_(estados_permitidos)),
+                # Caso nuevo: estado_id en estados permitidos
+                Turno.estado_id.in_(estados_ids)
+            )
+        )
+
+        turnos = (
+            session.query(Turno)
+            .options(joinedload(Turno.paciente), joinedload(Turno.estado_obj))
+            .filter(*filtros)
+            .order_by(Turno.hora)
+            .limit(limite)
+            .all()
+        )
+
+        return turnos
+
     def listar_turnos_paciente_pagina(
         paciente_id: int,
         pagina: int = 1,
@@ -78,7 +122,12 @@ class ListarTurnosService:
         
         # Aplicar filtro de estado
         if filtro_estado:
-            query = query.filter(Turno.estado == filtro_estado)
+            estado_obj = Estado.query.filter_by(nombre=filtro_estado).first()
+            if estado_obj:
+                query = query.filter(Turno.estado_id == estado_obj.id)
+            else:
+                # Estado inexistente -> sin resultados
+                query = query.filter(False)
         
         # Contar total antes de paginar
         total = query.count()
@@ -102,7 +151,7 @@ class ListarTurnosService:
                 'hora': t.hora,
                 'duracion': t.duracion,
                 'detalle': t.detalle,
-                'estado': t.estado,
+                'estado': t.estado_nombre,
                 'creado_en': t.creado_en,
             }
             for t in turnos
@@ -148,7 +197,7 @@ class ListarTurnosService:
                 'hora': t.hora,
                 'duracion': t.duracion,
                 'detalle': t.detalle,
-                'estado': t.estado,
+                'estado': t.estado_nombre,
             }
             for t in turnos
         ]
@@ -180,7 +229,7 @@ class ListarTurnosService:
                 'hora': t.hora,
                 'duracion': t.duracion,
                 'detalle': t.detalle,
-                'estado': t.estado,
+                'estado': t.estado_nombre,
             }
             for t in turnos
         ]
@@ -218,7 +267,7 @@ class ListarTurnosService:
                 'fecha': t.fecha,
                 'hora': t.hora,
                 'duracion': t.duracion,
-                'estado': t.estado,
+                'estado': t.estado_nombre,
             }
             for t in turnos
         ]
@@ -244,9 +293,21 @@ class ListarTurnosService:
         hoy = date.today()
         
         # Query todos los turnos que potencialmente podrían ser vencidos
-        turnos = session.query(Turno).filter(
-            Turno.estado.notin_(['Atendido', 'NoAtendido', 'Cancelado'])
-        ).all()
+        estados = {
+            e.nombre: e.id for e in session.query(Estado).filter(Estado.nombre.in_([
+                'Atendido', 'NoAtendido', 'Cancelado'
+            ])).all()
+        }
+
+        if 'NoAtendido' not in estados:
+            return {'turnos_actualizados': 0, 'total_turnos': session.query(Turno).count()}
+
+        filtros = [Turno.estado_id.is_(None)]
+        ids_excluir = [eid for name, eid in estados.items() if name in ['Atendido', 'NoAtendido', 'Cancelado']]
+        if ids_excluir:
+            filtros.append(~Turno.estado_id.in_(ids_excluir))
+
+        turnos = session.query(Turno).filter(*filtros).all()
         
         cambios = 0
         for turno in turnos:
@@ -263,6 +324,7 @@ class ListarTurnosService:
             
             # Marcar como NoAtendido si vencido
             if es_vencido:
+                turno.estado_id = estados.get('NoAtendido')
                 turno.estado = 'NoAtendido'
                 cambios += 1
         

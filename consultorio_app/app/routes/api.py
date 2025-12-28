@@ -3,7 +3,7 @@ API endpoints JSON para integración con Swagger/OpenAPI.
 Todos los endpoints retornan JSON para integración con herramientas externas.
 """
 from datetime import datetime, date
-from flask import jsonify, request
+from flask import jsonify, request, session
 from flask_login import login_required
 from sqlalchemy.orm import joinedload
 from app.database.session import DatabaseSession
@@ -20,11 +20,26 @@ def _actualizar_no_atendidos(session):
     """Marca como NoAtendido los turnos vencidos que no fueron atendidos."""
     ahora = datetime.now()
     hoy = date.today()
-    
+    estados = {
+        e.nombre: e.id
+        for e in session.query(Estado).filter(Estado.nombre.in_([
+            'Atendido', 'NoAtendido', 'Cancelado'
+        ])).all()
+    }
+
+    if 'NoAtendido' not in estados:
+        print('[api] Estado "NoAtendido" no encontrado; no se actualizaron turnos.')
+        return 0
+
+    filtros = [Turno.estado_id.is_(None)]
+    ids_excluir = [eid for name, eid in estados.items() if name in ['Atendido', 'NoAtendido', 'Cancelado']]
+    if ids_excluir:
+        filtros.append(~Turno.estado_id.in_(ids_excluir))
+
     vencidos = (
         session.query(Turno)
-        .options(joinedload(Turno.paciente))
-        .filter(Turno.estado.is_(None) | ~Turno.estado.in_(['Atendido', 'NoAtendido', 'Cancelado']))
+        .options(joinedload(Turno.paciente), joinedload(Turno.estado_obj))
+        .filter(*filtros)
         .all()
     )
     
@@ -40,6 +55,7 @@ def _actualizar_no_atendidos(session):
                 es_vencido = True
         
         if es_vencido:
+            turno.estado_id = estados.get('NoAtendido')
             turno.estado = 'NoAtendido'
             cambios += 1
     
@@ -165,7 +181,7 @@ def api_listar_turnos():
     termino = request.args.get('buscar', '').strip()
     estado_filtro = request.args.get('estado', '').strip()
 
-    query = session.query(Turno).options(joinedload(Turno.paciente))
+    query = session.query(Turno).options(joinedload(Turno.paciente), joinedload(Turno.estado_obj))
 
     if fecha_filtro:
         fecha_obj = datetime.strptime(fecha_filtro, '%Y-%m-%d').date()
@@ -174,7 +190,10 @@ def api_listar_turnos():
         query = query.filter(Turno.fecha >= date.today())
 
     if estado_filtro:
-        query = query.filter(Turno.estado == estado_filtro)
+      estado_obj = session.query(Estado).filter_by(nombre=estado_filtro).first()
+      if not estado_obj:
+        return jsonify({'turnos': [], 'cantidad': 0})
+      query = query.filter(Turno.estado_id == estado_obj.id)
 
     if termino:
         like_term = f"%{termino.lower()}%"
@@ -191,7 +210,7 @@ def api_listar_turnos():
             'id': t.id,
             'fecha': t.fecha.isoformat(),
             'hora': t.hora.isoformat() if t.hora else None,
-            'estado': t.estado or 'Pendiente',
+            'estado': t.estado_nombre,
             'detalle': t.detalle,
             'paciente_id': t.paciente_id,
             'paciente_nombre': f"{t.paciente.nombre} {t.paciente.apellido}" if t.paciente else '',
@@ -225,7 +244,7 @@ def api_ver_turno(id: int):
     # Actualizar turnos vencidos antes de retornar detalles
     _actualizar_no_atendidos(session)
     
-    turno = Turno.query.get_or_404(id)
+    turno = Turno.query.options(joinedload(Turno.paciente), joinedload(Turno.estado_obj)).get_or_404(id)
 
     cambios = CambioEstado.query.filter_by(turno_id=id).order_by(CambioEstado.fecha_cambio.desc()).all()
 
@@ -233,7 +252,7 @@ def api_ver_turno(id: int):
         'id': turno.id,
         'fecha': turno.fecha.isoformat(),
         'hora': turno.hora.isoformat() if turno.hora else None,
-        'estado': turno.estado or 'Pendiente',
+        'estado': turno.estado_nombre,
         'detalle': turno.detalle,
         'paciente': {
             'id': turno.paciente.id,

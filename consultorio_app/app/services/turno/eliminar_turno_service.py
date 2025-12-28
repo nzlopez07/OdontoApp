@@ -47,7 +47,7 @@ class EliminarTurnoService:
             raise TurnoNoEncontradoError(turno_id)
         
         # 2. Validar estado
-        estado_actual = turno.estado or 'Pendiente'
+        estado_actual = turno.estado_nombre
         if estado_actual != 'Pendiente':
             raise EstadoTurnoInvalidoError(
                 f'Solo se pueden eliminar turnos en estado "Pendiente". '

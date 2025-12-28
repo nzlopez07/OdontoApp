@@ -98,6 +98,7 @@ Roles implementados:
 **Validadores implementados:**
 - `ValidadorPaciente`: DNI, nombre, apellido, teléfono
 - `ValidadorTurno`: fecha, hora, duración
+- `ValidadorTurno.validar_fecha_hora_futura`: bloquea crear/reagendar en horario pasado
 - `ValidadorPrestacion`: monto, descuentos
 - `ValidadorGasto`: categoría, monto, descripción
 - `ValidadorFecha`: fechas de nacimiento, rangos
@@ -154,6 +155,23 @@ Roles implementados:
 
 ---
 
+## 🔄 FASE 3.7 — Estados de Turno por FK
+
+**Objetivo:** unificar manejo de estados de turnos mediante `estado_id` (FK a `estados`) y exponer `estado_nombre` en UI/APIs.
+
+**Implementado:**
+- Modelo `Turno`: `estado_id` + relación `estado_obj` + propiedad `estado_nombre` ([app/models/turno.py](app/models/turno.py)).
+- Servicios actualizados a FK: agendar, editar, cambiar estado, listar, agenda y eliminación de turno ([app/services/turno/*](app/services/turno)).
+- Rutas/API: filtros y respuestas usan `estado_id` y devuelven `estado_nombre` ([app/routes/api.py](app/routes/api.py)).
+- Scheduler: actualización de vencidos migra a `estado_id` y usa la tabla `estados` ([app/scheduler.py](app/scheduler.py)).
+- Solapamiento: ignora slots `Cancelado`/`NoAtendido` mediante `estado_id`.
+
+**Decisión temporal:** se mantiene la columna legacy `estado` por compatibilidad. En producción se reconstruirá la BD sin esta columna.
+
+**Estado:** ✅ **COMPLETADA** (Diciembre 2025)
+
+---
+
 ## 🧾 FASE 4 — Logging técnico seguro
 
 **Objetivo:** soporte remoto sin comprometer datos clínicos.
@@ -202,6 +220,7 @@ Roles implementados:
 
 * [x] Integrar APScheduler
 * [x] Mover actualización de turnos vencidos a tarea programada (cada 5 min)
+* [x] Migrar lógica a `estado_id` (FK) y excluir `Atendido/NoAtendido/Cancelado`
 * [x] Configurar frecuencia segura (5 min) y cleanup de conversaciones
 
 **Conceptos:** Background Jobs, Scheduled Tasks
@@ -280,6 +299,7 @@ Tests adicionales recomendados (pendientes):
 [x] Fase 3.5 – Dashboard Financiero Avanzado ✅
 [x] Fase 4 – Logging ✅
 [x] Fase 5 – Scheduler ✅
+[x] Fase 3.7 – Estados Turno por FK ✅
 [~] Fase 6 – Tests (avance sustancial)
 [ ] Fase 7 – Packaging
 [ ] Fase 8 – Updates
@@ -293,6 +313,7 @@ Tests adicionales recomendados (pendientes):
 
 **Gestión Clínica:**
 - Sistema de pacientes completo (CRUD + búsqueda)
+- Eliminación de paciente (cascada: turnos y odontograma) desde UI ([app/routes/pacientes.py](app/routes/pacientes.py))
 - Agenda de turnos con estados y cambios automáticos
 - Prestaciones con múltiples prácticas y descuentos
 - Odontograma digital interactivo
@@ -318,13 +339,16 @@ Tests adicionales recomendados (pendientes):
 - Scheduler para tareas automáticas
 - Rate limiting para APIs externas
 - Backups automáticos antes de operaciones destructivas
+- Estados de turnos unificados por FK (`estado_id`) y `estado_nombre` como única fuente en UI/APIs
 
 ### 🟡 Próximas Prioridades
 
 1. **Testing estratégico** (Fase 6) - Completar cobertura: editar/eliminar y odontograma; reducir warnings SQLAlchemy
-2. **Logging mejorado** (Fase 4) - Afinar filtros y auto-actualización
-3. **Empaquetado** (Fase 7) - Distribución como app de escritorio
-4. **Updates seguros** (Fase 8) - Sistema de actualización con backups automáticos
+2. **Limpieza de columna legacy** - Auditar y eliminar cualquier uso restante de `Turno.estado`; reconstruir BD sin columna legacy en producción
+3. **Pruebas de cascada** - Tests de eliminación de paciente y consistencia de relaciones
+4. **Logging mejorado** (Fase 4) - Afinar filtros y auto-actualización
+5. **Empaquetado** (Fase 7) - Distribución como app de escritorio
+6. **Updates seguros** (Fase 8) - Sistema de actualización con backups automáticos
 
 ---
 

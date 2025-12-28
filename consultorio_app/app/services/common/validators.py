@@ -86,6 +86,20 @@ class ValidadorTurno:
                 f"{ValidadorTurno.HORARIO_FIN.strftime('%H:%M')}"
             )
         return True, None
+
+    @staticmethod
+    def validar_fecha_hora_futura(fecha: date, hora: time) -> tuple:
+        """Valida que la combinación fecha+hora no sea en el pasado (hoy con hora anterior).
+
+        Returns:
+            (es_válida, mensaje_error)
+        """
+        if not fecha or not hora:
+            return False, "Fecha y hora son requeridas"
+        dt = datetime.combine(fecha, hora)
+        if dt < datetime.now():
+            return False, "No se pueden agendar turnos en un horario pasado"
+        return True, None
     
     @staticmethod
     def validar_duracion(duracion: int) -> tuple:

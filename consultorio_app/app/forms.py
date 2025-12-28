@@ -12,7 +12,7 @@ from wtforms import (
     SelectField, TextAreaField, SubmitField, HiddenField, BooleanField
 )
 from wtforms.validators import (
-    DataRequired, Length, Email, EqualTo, Optional,
+    DataRequired, InputRequired, Length, Email, EqualTo, Optional,
     ValidationError, NumberRange
 )
 from datetime import date
@@ -147,7 +147,7 @@ class TurnoForm(FlaskForm):
         'Horas',
         default=0,
         validators=[
-            DataRequired(message='Las horas son requeridas'),
+            InputRequired(message='Las horas son requeridas'),
             NumberRange(min=0, max=8, message='Las horas deben estar entre 0 y 8')
         ]
     )
@@ -156,7 +156,7 @@ class TurnoForm(FlaskForm):
         'Minutos',
         default=30,
         validators=[
-            DataRequired(message='Los minutos son requeridos'),
+            InputRequired(message='Los minutos son requeridos'),
             NumberRange(min=0, max=59, message='Los minutos deben estar entre 0 y 59')
         ]
     )
@@ -175,7 +175,8 @@ class TurnoForm(FlaskForm):
             ('NoAtendido', 'No Atendido'),
             ('Cancelado', 'Cancelado')
         ],
-        validators=[DataRequired(message='Debe seleccionar un estado')]
+        default='Confirmado',
+        validators=[Optional()]
     )
     
     submit = SubmitField('Guardar Turno')
@@ -193,6 +194,22 @@ class TurnoForm(FlaskForm):
             es_válida, mensaje = ValidadorTurno.validar_hora(field.data)
             if not es_válida:
                 raise ValidationError(mensaje)
+
+    def validate(self, extra_validators=None):
+        """Validación cruzada: duración total debe ser > 0 minutos."""
+        if not super().validate(extra_validators=extra_validators):
+            return False
+        try:
+            horas = self.duracion_horas.data or 0
+            minutos = self.duracion_minutos.data or 0
+            total = horas * 60 + minutos
+            if total <= 0:
+                self.duracion_horas.errors.append('La duración total debe ser mayor a 0 minutos')
+                return False
+        except Exception:
+            # Si algo extraño ocurre, dejar que validaciones de campo manejen el error
+            return False
+        return True
 
 
 class PrestacionForm(FlaskForm):

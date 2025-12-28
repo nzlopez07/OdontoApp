@@ -2,6 +2,7 @@ from datetime import date
 from flask import render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from app.models import Paciente, Turno, Prestacion
+from app.services.turno.listar_turnos_service import ListarTurnosService
 from app.forms import LoginForm
 from app.services.usuario import AutenticarUsuarioService
 from app.services.common.log_helpers import log_security_event
@@ -90,12 +91,10 @@ def index():
         'prestaciones': Prestacion.query.count(),
     }
 
-    turnos_proximos = (
-        Turno.query
-        .filter(Turno.fecha >= date.today())
-        .order_by(Turno.fecha, Turno.hora)
-        .limit(5)
-        .all()
+    # Mostrar sólo turnos de HOY en estados Pendiente o Confirmado
+    turnos_proximos = ListarTurnosService.obtener_turnos_hoy_filtrados(
+        estados_permitidos=["Pendiente", "Confirmado"],
+        limite=5,
     )
 
     return render_template('index.html', stats=stats, turnos_proximos=turnos_proximos)

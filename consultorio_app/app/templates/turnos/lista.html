@@ -1,63 +1,99 @@
 {% extends "base.html" %}
 
-{% block title %}Turnos{% endblock %}
+{% block title %}Turnos - Florens{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">Turnos</h3>
-    <div class="d-flex gap-2">
-        <form class="d-flex align-items-center" method="get">
-            <input type="text" name="buscar" class="form-control form-control-sm" placeholder="Nombre, apellido o DNI" value="{{ termino or '' }}">
-            <input type="date" name="fecha" class="form-control form-control-sm ms-2" value="{{ fecha_filtro or '' }}">
-            <button class="btn btn-sm btn-outline-primary ms-2" type="submit">Filtrar</button>
+<div class="page-header">
+    <h2><i class="bi bi-calendar-check-fill" style="color: #667eea; margin-right: 8px;"></i> Turnos</h2>
+    <a href="{{ url_for('main.nuevo_turno') }}" class="btn btn-primary">
+        <i class="bi bi-calendar-plus"></i> Nuevo Turno
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form class="d-flex gap-2" method="get">
+            <input type="text" name="buscar" class="form-control" placeholder="Nombre, apellido o DNI..." value="{{ termino or '' }}">
+            <input type="date" name="fecha" class="form-control" value="{{ fecha_filtro or '' }}">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
         </form>
-        <a href="{{ url_for('main.nuevo_turno') }}" class="btn btn-sm btn-success">
-            <i class="bi bi-calendar-plus"></i> Nuevo turno
-        </a>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-body">
-        {% if turnos %}
-        <div class="table-responsive">
-            <table class="table table-striped align-middle">
-                <thead>
-                    <tr>
-                        <th>Paciente</th>
-                        <th>Fecha</th>
-                        <th>Hora</th>
-                        <th>Estado</th>
-                        <th>Detalle</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for turno in turnos %}
-                    {% set estado_nombre = turno.estado or 'Pendiente' %}
-                    <tr>
-                        <td>{{ turno.paciente.nombre }} {{ turno.paciente.apellido }}</td>
-                        <td>{{ turno.fecha.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ turno.hora.strftime('%H:%M') }}</td>
-                        <td>
-                            <span class="badge bg-{{ 'success' if estado_nombre == 'Confirmado' else 'secondary' if estado_nombre == 'Completado' else 'warning' }}">{{ estado_nombre }}</span>
-                        </td>
-                        <td>{{ turno.detalle or '-' }}</td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <form method="post" action="{{ url_for('main.cambiar_estado_turno', turno_id=turno.id) }}" class="d-inline">
-                                    <input type="hidden" name="estado" value="Atendido">
-                                    <button type="submit" class="btn btn-sm btn-outline-success" {% if estado_nombre == 'NoAtendido' %}disabled{% endif %} title="Marcar como atendido">Atender</button>
-                                </form>
-                                <form method="post" action="{{ url_for('main.cambiar_estado_turno', turno_id=turno.id) }}" class="d-inline">
-                                    <input type="hidden" name="estado" value="Cancelado">
-                                    <button type="submit" class="btn btn-sm btn-outline-warning" {% if estado_nombre == 'NoAtendido' %}disabled{% endif %} title="Cancelar turno">Cancelar</button>
-                                </form>
-                                <form method="post" action="{{ url_for('main.eliminar_turno', turno_id=turno.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar este turno?');">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" {% if estado_nombre != 'Pendiente' %}disabled{% endif %} title="Solo se pueden eliminar turnos pendientes">Eliminar</button>
-                                </form>
-                            </div>
-                        </td>
+    {% if turnos %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Paciente</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Estado</th>
+                    <th>Detalle</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for turno in turnos %}
+                {% set estado_nombre = turno.estado_nombre %}
+                <tr>
+                    <td><strong>{{ turno.paciente.nombre }} {{ turno.paciente.apellido }}</strong></td>
+                    <td>{{ turno.fecha.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ turno.hora.strftime('%H:%M') }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if estado_nombre == 'Confirmado' else 'warning' if estado_nombre == 'Pendiente' else 'danger' if estado_nombre == 'Cancelado' else 'info' }}">
+                            {{ estado_nombre }}
+                        </span>
+                    </td>
+                    <td>{{ turno.detalle or '-' }}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ url_for('main.ver_turno', turno_id=turno.id) }}" class="btn btn-outline-primary" title="Ver detalles">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                            {% if estado_nombre in ['Pendiente', 'Confirmado'] %}
+                            <form method="post" action="{{ url_for('main.cambiar_estado_turno', turno_id=turno.id) }}" class="d-inline">
+                                <input type="hidden" name="estado" value="Atendido">
+                                <button type="submit" class="btn btn-outline-success btn-sm" title="Marcar como atendido">
+                                    <i class="bi bi-check-circle"></i> Atender
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if estado_nombre != 'Cancelado' and estado_nombre != 'Atendido' and estado_nombre != 'NoAtendido' %}
+                            <form method="post" action="{{ url_for('main.cambiar_estado_turno', turno_id=turno.id) }}" class="d-inline">
+                                <input type="hidden" name="estado" value="Cancelado">
+                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Cancelar turno">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if estado_nombre == 'Pendiente' %}
+                            <form method="post" action="{{ url_for('main.eliminar_turno', turno_id=turno.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar este turno?');">
+                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Solo se pueden eliminar turnos pendientes">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-calendar-x" style="font-size: 3rem; color: #ccc; display: block; margin-bottom: 15px;"></i>
+        <p class="text-muted">No hay turnos que mostrar</p>
+        <a href="{{ url_for('main.nuevo_turno') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-calendar-plus"></i> Crear Turno
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -5,7 +5,8 @@ Tareas periódicas para mantenimiento de la aplicación.
 from datetime import datetime, date
 
 from app.database import db
-from app.models import Conversation, Turno
+from app.models import Conversation, Turno, Estado
+from app.services.turno.cambiar_estado_turno_service import CambiarEstadoTurnoService
 
 
 def cleanup_expired_conversations():
@@ -40,8 +41,25 @@ def actualizar_turnos_no_atendidos():
     ahora = datetime.now()
     hoy = date.today()
     
+    estados_requeridos = {
+        e.nombre: e.id for e in Estado.query.filter(Estado.nombre.in_([
+            'Atendido', 'NoAtendido', 'Cancelado'
+        ])).all()
+    }
+
+    ids_excluidos = [eid for name, eid in estados_requeridos.items() if name in ['Atendido', 'NoAtendido', 'Cancelado']]
+
+    # Si no existen los estados necesarios, salir sin cambios para evitar errores silenciosos.
+    if 'NoAtendido' not in estados_requeridos:
+        print('[scheduler] Estado "NoAtendido" no encontrado; no se actualizaron turnos.')
+        return 0
+
+    filtros = [Turno.estado_id.is_(None)]
+    if ids_excluidos:
+        filtros.append(~Turno.estado_id.in_(ids_excluidos))
+
     turnos = Turno.query.filter(
-        (Turno.estado.is_(None)) | (~Turno.estado.in_(['Atendido', 'NoAtendido', 'Cancelado']))
+        *filtros
     ).all()
     
     cambios = 0
@@ -56,11 +74,18 @@ def actualizar_turnos_no_atendidos():
                 vencido = True
         
         if vencido:
-            turno.estado = 'NoAtendido'
-            cambios += 1
+            try:
+                CambiarEstadoTurnoService.execute(
+                    turno_id=turno.id,
+                    estado_nuevo='NoAtendido',
+                    motivo='Cambio automático por turno vencido'
+                )
+                cambios += 1
+            except Exception as e:
+                # No interrumpir el batch por un error individual
+                print(f"[scheduler] Error marcando turno {turno.id} como NoAtendido: {e}")
     
     if cambios:
-        db.session.commit()
         print(f"[scheduler] Turnos marcados como NoAtendido: {cambios}")
     
     return cambios

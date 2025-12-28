@@ -293,6 +293,76 @@ def run_migrations_sqlite():
         db.session.commit()
         print("[OK] Tabla odontograma_caras creada")
 
+    # 10) Agregar columna estado_id a turnos si no existe y backfill desde nombre
+    turnos_cols = db.session.execute(text("PRAGMA table_info('turnos')")).fetchall()
+    turnos_col_names = {c[1] for c in turnos_cols}
+    if 'estado_id' not in turnos_col_names:
+        print("[TOOLS] Agregando columna estado_id a turnos...")
+        try:
+            db.session.execute(text("ALTER TABLE turnos ADD COLUMN estado_id INTEGER"))
+            db.session.commit()
+            print("[OK] Columna estado_id agregada")
+        except Exception as e:
+            print(f"[ERROR] No se pudo agregar estado_id a turnos: {e}")
+            db.session.rollback()
+
+    # Backfill siempre que haya estado_id y existan nombres
+    try:
+        print("[TOOLS] Backfill de turnos.estado_id desde estados.nombre...")
+        db.session.execute(text(
+            "UPDATE turnos SET estado_id = (SELECT id FROM estados e WHERE e.nombre = turnos.estado) "
+            "WHERE estado IS NOT NULL AND (estado_id IS NULL OR estado_id = 0)"
+        ))
+        db.session.commit()
+        print("[OK] Backfill de estado_id completado")
+    except Exception as e:
+        print(f"[ERROR] Backfill estado_id en turnos: {e}")
+        db.session.rollback()
+
+    # 11) Agregar columnas estado_anterior_id / estado_nuevo_id a cambios_estado y backfill
+    cambios_cols = db.session.execute(text("PRAGMA table_info('cambios_estado')")).fetchall()
+    cambios_col_names = {c[1] for c in cambios_cols}
+    need_commit = False
+    if 'estado_anterior_id' not in cambios_col_names:
+        print("[TOOLS] Agregando columna estado_anterior_id a cambios_estado...")
+        try:
+            db.session.execute(text("ALTER TABLE cambios_estado ADD COLUMN estado_anterior_id INTEGER"))
+            need_commit = True
+        except Exception as e:
+            print(f"[ERROR] No se pudo agregar estado_anterior_id: {e}")
+    if 'estado_nuevo_id' not in cambios_col_names:
+        print("[TOOLS] Agregando columna estado_nuevo_id a cambios_estado...")
+        try:
+            db.session.execute(text("ALTER TABLE cambios_estado ADD COLUMN estado_nuevo_id INTEGER"))
+            need_commit = True
+        except Exception as e:
+            print(f"[ERROR] No se pudo agregar estado_nuevo_id: {e}")
+    if need_commit:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    # Backfill de cambios_estado
+    if ('estado_anterior_id' in db.session.execute(text("PRAGMA table_info('cambios_estado')")).fetchall()[0] or True):
+        try:
+            print("[TOOLS] Backfill de cambios_estado.*_id desde estados.nombre...")
+            # estado_nuevo_id
+            db.session.execute(text(
+                "UPDATE cambios_estado SET estado_nuevo_id = (SELECT id FROM estados e WHERE e.nombre = cambios_estado.estado_nuevo) "
+                "WHERE estado_nuevo IS NOT NULL AND (estado_nuevo_id IS NULL OR estado_nuevo_id = 0)"
+            ))
+            # estado_anterior_id
+            db.session.execute(text(
+                "UPDATE cambios_estado SET estado_anterior_id = (SELECT id FROM estados e WHERE e.nombre = cambios_estado.estado_anterior) "
+                "WHERE estado_anterior IS NOT NULL AND (estado_anterior_id IS NULL OR estado_anterior_id = 0)"
+            ))
+            db.session.commit()
+            print("[OK] Backfill de cambios_estado completado")
+        except Exception as e:
+            print(f"[ERROR] Backfill en cambios_estado: {e}")
+            db.session.rollback()
+
 
 def main():
     app = create_app()

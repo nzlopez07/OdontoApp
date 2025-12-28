@@ -10,6 +10,7 @@ from app.services.paciente import (
     BuscarPacientesService,
     CrearPacienteService,
     EditarPacienteService,
+    EliminarPacienteService,
 )
 from app.services.odontograma import (
   ObtenerOdontogramaService,
@@ -211,6 +212,21 @@ def ver_odontograma_paciente(id: int):
     except ValueError as e:
         flash(str(e), 'error')
         return redirect(url_for('main.ver_paciente', id=id))
+
+
+@main_bp.route('/pacientes/<int:id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_paciente(id: int):
+    """Elimina un paciente y sus datos relacionados (turnos, odontogramas)."""
+    try:
+        resultado = EliminarPacienteService.execute(id)
+        flash(resultado['mensaje'], 'success')
+    except PacienteNoEncontradoError as e:
+        flash(str(e), 'error')
+    except Exception as e:
+        flash(f'Error al eliminar paciente: {str(e)}', 'error')
+
+    return redirect(url_for('main.listar_pacientes'))
 
 
 @main_bp.route('/pacientes/<int:id>/odontograma/datos')

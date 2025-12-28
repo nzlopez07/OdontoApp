@@ -89,6 +89,17 @@ def create_app():
         }
     )
     
+    # Registrar custom Jinja2 filters
+    @app.template_filter('empty_fallback')
+    def empty_fallback(value, default='No registrado'):
+        """
+        Convierte valores vacíos o la cadena 'None' a un valor por defecto.
+        Útil para manejar campos NULL de base de datos o strings 'None' accidentales.
+        """
+        if value is None or value == '' or str(value).strip() == 'None':
+            return default
+        return value
+    
     # Registrar blueprints (rutas)
     from app.routes import main_bp
     from app.routes.webhooks import webhooks_bp

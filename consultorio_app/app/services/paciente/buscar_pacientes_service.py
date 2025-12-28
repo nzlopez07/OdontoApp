@@ -28,23 +28,45 @@ class BuscarPacientesService:
         Busca pacientes por término (nombre, apellido o DNI).
         
         Args:
-            termino: Término de búsqueda (parcial, case-insensitive)
+            termino: Término de búsqueda (parcial, case-insensitive, sin acentos)
         
         Returns:
             Lista de pacientes que coinciden
         """
+        import unicodedata
+        
         termino = (termino or "").strip()
         
         if not termino:
             return BuscarPacientesService.listar_todos()
         
-        # Búsqueda en nombre, apellido y DNI
-        like_term = f"%{termino.lower()}%"
-        return Paciente.query.filter(
-            (Paciente.nombre.ilike(like_term)) |
-            (Paciente.apellido.ilike(like_term)) |
-            (Paciente.dni.ilike(like_term))
-        ).order_by(Paciente.apellido, Paciente.nombre).all()
+        # Normalizar término: remover acentos y convertir a lowercase
+        def normalizar(texto):
+            """Elimina acentos y convierte a lowercase para búsqueda"""
+            nfd = unicodedata.normalize('NFD', texto)
+            sin_acentos = ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+            return sin_acentos.lower()
+        
+        termino_normalizado = normalizar(termino)
+        
+        # Obtener todos los pacientes y filtrar en memoria (alternativa a búsqueda en BD)
+        # Esto es necesario porque SQLite no maneja bien la normalización de acentos
+        todos_pacientes = Paciente.query.all()
+        
+        resultados = []
+        for paciente in todos_pacientes:
+            nombre_norm = normalizar(paciente.nombre)
+            apellido_norm = normalizar(paciente.apellido)
+            dni_norm = normalizar(paciente.dni)
+            
+            if (termino_normalizado in nombre_norm or 
+                termino_normalizado in apellido_norm or 
+                termino_normalizado in dni_norm):
+                resultados.append(paciente)
+        
+        # Ordenar resultados
+        resultados.sort(key=lambda p: (p.apellido, p.nombre))
+        return resultados
     
     @staticmethod
     def obtener_por_id(paciente_id: int) -> Paciente:

@@ -61,20 +61,20 @@
                             <p>
                                 {% set estado_color = 'gray' %}
                                 {% set estado_text_color = 'white' %}
-                                {% if turno.estado == 'Pendiente' %}
+                                {% if turno.estado_nombre == 'Pendiente' %}
                                     {% set estado_color = '#ffc107' %}
                                     {% set estado_text_color = '#212529' %}
-                                {% elif turno.estado == 'Confirmado' %}
+                                {% elif turno.estado_nombre == 'Confirmado' %}
                                     {% set estado_color = '#0dcaf0' %}
-                                {% elif turno.estado == 'Atendido' %}
+                                {% elif turno.estado_nombre == 'Atendido' %}
                                     {% set estado_color = '#198754' %}
-                                {% elif turno.estado == 'NoAtendido' %}
+                                {% elif turno.estado_nombre == 'NoAtendido' %}
                                     {% set estado_color = '#dc3545' %}
-                                {% elif turno.estado == 'Cancelado' %}
+                                {% elif turno.estado_nombre == 'Cancelado' %}
                                     {% set estado_color = '#6c757d' %}
                                 {% endif %}
                                 <span class="badge" style="background-color: {{ estado_color }}; color: {{ estado_text_color }};">
-                                    {{ turno.estado }}
+                                    {{ turno.estado_nombre }}
                                 </span>
                             </p>
                         </div>
@@ -92,15 +92,19 @@
                     <!-- Cambiar Estado -->
                     <div class="row mt-4">
                         <div class="col-12">
-                            <form method="POST" action="{{ url_for('main.cambiar_estado_turno', turno_id=turno.id) }}" class="form-inline">
-                                <label class="me-2"><strong>Cambiar Estado:</strong></label>
-                                <select name="estado" class="form-select form-select-sm me-2" required>
-                                    <option value="">-- Seleccionar --</option>
-                                    {% for es in estados_permitidos %}
-                                    <option value="{{ es }}">{{ es }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-primary" {% if not estados_permitidos %}disabled{% endif %}>
+                            <form method="POST" action="{{ url_for('main.cambiar_estado_turno', turno_id=turno.id) }}">
+                                <label class="mb-2 d-block"><strong>Cambiar Estado:</strong></label>
+                                <div class="row g-2">
+                                    <div class="col-sm-6 col-md-5 col-lg-4">
+                                        <select name="estado" class="form-select form-select-sm" required>
+                                            <option value="">-- Seleccionar --</option>
+                                            {% for es in estados_permitidos %}
+                                            <option value="{{ es }}">{{ es }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary mt-3" {% if not estados_permitidos %}disabled{% endif %}>
                                     Actualizar
                                 </button>
                             </form>
@@ -115,7 +119,7 @@
 
                     <!-- Reagendar Turno (solo si no está en estado final) -->
                     {% set estados_finales = ['Atendido', 'NoAtendido', 'Cancelado'] %}
-                    {% if turno.estado not in estados_finales %}
+                    {% if turno.estado_nombre not in estados_finales %}
                     <div class="row mt-4">
                         <div class="col-12">
                             <h6><i class="fas fa-sync"></i> Reagendar Turno</h6>
@@ -204,7 +208,7 @@
                     <a href="{{ url_for('main.ver_paciente', id=turno.paciente_id) }}" class="btn btn-info">
                         <i class="fas fa-user"></i> Ver Ficha del Paciente
                     </a>
-                    {% if turno.estado == 'Pendiente' %}
+                    {% if turno.estado_nombre == 'Pendiente' %}
                     <form method="POST" action="{{ url_for('main.eliminar_turno', turno_id=turno.id) }}" class="d-inline">
                         <button type="submit" class="btn btn-danger" onclick="return confirm('¿Eliminar este turno?');">
                             <i class="fas fa-trash"></i> Eliminar Turno
